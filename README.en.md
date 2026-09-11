@@ -12,39 +12,39 @@ ShuiMan treats two-page spreads as a core reading experience. Confirmed landscap
 
 Every automatic decision is reversible. Readers can rotate a page, pair or unpair pages, swap physical sides, or restore automatic analysis. Manual corrections always take precedence. Pages with little text, ambiguous text, or an indistinct seam may still need confirmation.
 
-## Original demonstration images
+## Application screenshots
 
-These five images are original synthetic test assets drawn in code. They are not application screenshots or evidence of automatic detection results. The sideways and upright images show the same artwork in two orientations; the final two images are its physical left and right halves.
+These are complete macOS application-window screenshots showing Quiet Valley, an original demonstration book drawn in code. No personal books are included. Detection indicators reflect the application's actual results for these pages, not a claim of general accuracy.
 
 ### 1. Single page
 
-A portrait page for demonstrating full-page fitting and single-page reading.
+A portrait page fitted in full, with the toolbar, thumbnail sidebar, and reading progress visible.
 
-![Original portrait page](docs/images/01-single-page.png)
+![Single-page reader with toolbar, thumbnails, and progress](docs/images/reader-single-page.png)
 
-### 2. Sideways spread source
+### 2. Automatic rotation of a sideways spread
 
-A landscape composition stored sideways, used to test orientation correction.
+A spread stored sideways is automatically rotated and fitted without cropping. Its thumbnail retains the source orientation. This EPUB example supplies a rotation-style hint.
 
-![Original spread stored sideways](docs/images/02-sideways-spread-source.png)
+![Automatically rotated and fully fitted spread](docs/images/reader-rotated-spread.png)
 
-### 3. Upright landscape spread
+### 3. Automatic composition of adjacent pages
 
-The correctly oriented reference for the same artwork, showing the complete spread.
+Two separate image files are automatically recognized as one continuous spread. Both thumbnails are selected, and the bottom bar indicates automatic paired-spread recognition.
 
-![Original upright landscape spread](docs/images/03-landscape-spread.png)
+![Two adjacent images automatically composed into a complete spread](docs/images/reader-paired-spread.png)
 
-### 4. Split spread: left half
+### 4. Manual corrections
 
-The physical left half cropped from the complete spread. It forms a continuous scene with the right half below.
+The expanded top-right menu exposes rotation, pairing, swapping physical sides, seam alignment, unpairing, and restoring automatic recognition. Manual corrections take precedence.
 
-![Physical left half of the original spread](docs/images/04-paired-spread-left.png)
+![Expanded page-correction and reading-settings menu](docs/images/reader-manual-correction.png)
 
-### 5. Split spread: right half
+### 5. Library and volumes
 
-The matching physical right half, used to test seam pairing. Confirmed physical placement should remain unchanged when reading direction changes.
+Organize local books by series and view volumes, reading states, and progress. Only the original demonstration series is shown.
 
-![Physical right half of the original spread](docs/images/05-paired-spread-right.png)
+![Library with an original series, volumes, and reading states](docs/images/library.png)
 
 ## Platforms
 

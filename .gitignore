@@ -48,12 +48,12 @@ docs/验证记录/
 # Application artwork is source-controlled
 !Resources/**
 
-# Original public demonstration assets
-!docs/images/01-single-page.png
-!docs/images/02-sideways-spread-source.png
-!docs/images/03-landscape-spread.png
-!docs/images/04-paired-spread-left.png
-!docs/images/05-paired-spread-right.png
+# Public application screenshots (original demonstration content only)
+!docs/images/reader-single-page.png
+!docs/images/reader-rotated-spread.png
+!docs/images/reader-paired-spread.png
+!docs/images/reader-manual-correction.png
+!docs/images/library.png
 
 # Local Kindle comic samples
 *.mobi

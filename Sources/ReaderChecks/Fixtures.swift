@@ -55,6 +55,7 @@ enum Fixtures {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let images = folder.appendingPathComponent("Images")
         try FileManager.default.createDirectory(at: images, withIntermediateDirectories: true)
+        try ShowcaseArtwork.generate(at:folder)
         let portrait = image(width: 800, height: 1200), wide = image(width: 1600, height: 1000, wide: true)
         let rotated = ImageTools.rotate(wide, clockwise: 270)
         let left = wide.cropping(to: CGRect(x: 0, y: 0, width: 800, height: 1000))!
