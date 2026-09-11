@@ -12,6 +12,40 @@ ShuiMan treats two-page spreads as a core reading experience. Confirmed landscap
 
 Every automatic decision is reversible. Readers can rotate a page, pair or unpair pages, swap physical sides, or restore automatic analysis. Manual corrections always take precedence. Pages with little text, ambiguous text, or an indistinct seam may still need confirmation.
 
+## Original demonstration images
+
+These five images are original synthetic test assets drawn in code. They are not application screenshots or evidence of automatic detection results. The sideways and upright images show the same artwork in two orientations; the final two images are its physical left and right halves.
+
+### 1. Single page
+
+A portrait page for demonstrating full-page fitting and single-page reading.
+
+![Original portrait page](docs/images/01-single-page.png)
+
+### 2. Sideways spread source
+
+A landscape composition stored sideways, used to test orientation correction.
+
+![Original spread stored sideways](docs/images/02-sideways-spread-source.png)
+
+### 3. Upright landscape spread
+
+The correctly oriented reference for the same artwork, showing the complete spread.
+
+![Original upright landscape spread](docs/images/03-landscape-spread.png)
+
+### 4. Split spread: left half
+
+The physical left half cropped from the complete spread. It forms a continuous scene with the right half below.
+
+![Physical left half of the original spread](docs/images/04-paired-spread-left.png)
+
+### 5. Split spread: right half
+
+The matching physical right half, used to test seam pairing. Confirmed physical placement should remain unchanged when reading direction changes.
+
+![Physical right half of the original spread](docs/images/05-paired-spread-right.png)
+
 ## Platforms
 
 - **macOS:** Swift, SwiftUI, AppKit, and SwiftPM. macOS 14+ is the current target.
