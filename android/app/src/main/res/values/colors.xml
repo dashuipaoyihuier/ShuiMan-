@@ -1,0 +1,8 @@
+<resources>
+    <!-- Actual sRGB pixel color of the macOS generated icon (calibrated source). -->
+    <color name="water_icon_background">#038094</color>
+    <!-- Exact rounded sRGB values from macOS WaterTheme.swift. -->
+    <color name="water_accent">#0F6E82</color>
+    <color name="water_surface">#F0F7F5</color>
+    <bool name="light_system_bars">true</bool>
+</resources>

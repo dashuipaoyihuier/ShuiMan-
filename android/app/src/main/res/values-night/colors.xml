@@ -1,0 +1,5 @@
+<resources>
+    <color name="water_accent">#61CCD4</color>
+    <color name="water_surface">#121F26</color>
+    <bool name="light_system_bars">false</bool>
+</resources>

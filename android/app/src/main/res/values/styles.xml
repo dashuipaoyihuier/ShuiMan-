@@ -1,0 +1,10 @@
+<resources>
+    <style name="AppTheme" parent="AppThemeBase" />
+    <style name="AppThemeBase" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowBackground">@color/water_surface</item>
+        <item name="android:colorAccent">@color/water_accent</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

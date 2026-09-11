@@ -1,0 +1,54 @@
+.build/
+build/
+.swiftpm/
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/signing/
+android/**/build/
+*.apk
+*.aab
+*.jks
+.DS_Store
+xcuserdata/
+*.xcuserstate
+
+# Local reading data and machine-specific credentials
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+.env
+.env.*
+!.env.example
+
+# Private local validation output and corpus metadata
+docs/验证记录/
+
+# Books and generated test media; fixture source lives in ReaderChecks
+*.epub
+*.mobi
+*.pdf
+*.cbz
+*.cbr
+*.zip
+*.rar
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.tif
+*.tiff
+*.bmp
+*.heic
+*.heif
+*.webp
+*.avif
+
+# Application artwork is source-controlled
+!Resources/**
+
+# Local Kindle comic samples
+*.mobi
+*.azw
+*.azw3

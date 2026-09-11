@@ -1,0 +1,11 @@
+<!-- Same original book/wave paths as scripts/make-icon.swift, with AppKit's
+     y axis flipped and the artwork fitted inside Android's adaptive safe zone.
+     Colors sampled from the generated macOS PNG, not a new icon design. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="1024" android:viewportHeight="1024">
+    <group android:scaleX="0.7" android:scaleY="-0.7" android:translateX="153.6" android:translateY="835">
+        <path android:fillColor="#F5FBF9" android:pathData="M220,310 L220,712 C310,748 408,714 490,674 L490,260 C400,308 305,340 220,310 Z M534,260 L534,674 C616,714 714,748 804,712 L804,310 C710,340 628,308 534,260 Z" />
+        <path android:strokeColor="#038094" android:strokeWidth="19" android:strokeLineCap="round" android:pathData="M279,430 L431,410 M279,530 L431,510 M279,630 L431,610" />
+        <path android:strokeColor="#94E3E0" android:strokeWidth="23" android:strokeLineCap="round" android:pathData="M232,212 C332,262 404,153 512,207 C620,262 684,153 792,212" />
+    </group>
+</vector>
