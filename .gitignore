@@ -59,3 +59,10 @@ docs/验证记录/
 *.mobi
 *.azw
 *.azw3
+
+# Windows build products and local application state
+windows/**/bin/
+windows/**/obj/
+windows/.vs/
+*.user
+*.suo

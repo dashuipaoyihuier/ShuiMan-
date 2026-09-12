@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows10.0.19041": {
+      "AngleSharp": {
+        "type": "Transitive",
+        "resolved": "1.8.1",
+        "contentHash": "fTLPBxwYK5zmt+ernY3GL1kFBDA/2Cl72hpNnMHeNceZNJ/AT7Km9CXFaMHybuEFhXDy2Dv7Bjkez5G0Z4Io4g=="
+      },
+      "Magick.NET-Q8-x64": {
+        "type": "Transitive",
+        "resolved": "14.17.1",
+        "contentHash": "TA87KqVVl4hYxav93fECRfvyOZPRO7gQsmpcbrgfn7aU/Qzv33IxKaDUvH3iA1I4QWc96G4T9HsjNWWIwS1a5w==",
+        "dependencies": {
+          "Magick.NET.Core": "14.17.1"
+        }
+      },
+      "Magick.NET.Core": {
+        "type": "Transitive",
+        "resolved": "14.17.1",
+        "contentHash": "4BBbU5l5DmdT9isSNGrIE/0VwAh29SoKMSDMiIvFBDqz6vQfG6EYBFJQOemdCH3xkMfesSzImOVPjnyMf/PIqA=="
+      },
+      "Microsoft.Web.WebView2": {
+        "type": "Transitive",
+        "resolved": "1.0.4191.47",
+        "contentHash": "Snb6mlTpuz6ZFjWMwIdg28Xp6kAUMy3zaLUyGbFSaw+/AJKlwoX8EiaWJ1eUMfKyJHksPkFjJHl1LIB7kX+0AQ=="
+      },
+      "ShuiMan": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Web.WebView2": "[1.0.4191.47, )",
+          "ShuiMan.Core": "[1.0.0, )"
+        }
+      },
+      "shuiman.core": {
+        "type": "Project",
+        "dependencies": {
+          "AngleSharp": "[1.8.1, )",
+          "Magick.NET-Q8-x64": "[14.17.1, )"
+        }
+      }
+    }
+  }
+}

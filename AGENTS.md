@@ -10,3 +10,11 @@ Native macOS comic reader. Read `macOS漫画阅读器-产品与开发文档.md`,
 - Preserve original comic files. User books are excluded from git; use generated fixtures for public tests.
 - Verify the changed behavior, report actual checks and limitations, and update task status. Do not substitute fixture labels or the HTML explainer for automatic detection results.
 - Keep main runnable. Use feature branches for substantial changes and commit coherent changes after appropriate checks. Generated fixture media is ignored; track the generator and labels. Remote publication requires user authorization.
+
+## Windows
+
+- The independent Windows implementation lives in `windows/` (C# / .NET 10 / WPF); `Package.swift` remains the macOS build definition. Read `windows/README.md` and `docs/windows-validation.md` for Windows behavior and actual validation limits.
+- `scripts/windows-test.ps1` runs generated native core regressions. `scripts/windows-ui-test.ps1` runs real WPF/WebView2 integration checks when the runtime is installed. `scripts/windows-build.ps1` produces a self-contained x64 portable distribution under `build/windows/`.
+- Decode and analyze outside the WPF dispatcher; cancel obsolete work and serialize publication access before disposal. EPUB HTML uses an offline, script-disabled WebView2 origin; do not allow book resources to access local files or remote networks.
+- ZIP/CBZ and image-folder page identities use stable paths and frame indexes, independent of sorted ordinals. Preserve EPUB spine occurrences and missing page positions. A confirmed pair's physical placement must remain independent of reading direction.
+- Store local state atomically and preserve unrelated records across concurrent application instances. Only generated fixtures belong in tests; original books and machine credentials stay out of Git.

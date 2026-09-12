@@ -2,7 +2,7 @@
 
 [English](README.en.md) · [开源说明](docs/OPEN_SOURCE.zh-CN.md)
 
-水漫（ShuiMan）是一款以隐私和离线阅读为优先的本地漫画阅读器。目前提供 macOS 与 Android 版本，支持在设备上直接阅读用户合法拥有的图片、PDF、EPUB、MOBI，以及其他逐步完善中的本地漫画格式；项目不提供、分发或索引任何漫画内容。
+水漫（ShuiMan）是一款以隐私和离线阅读为优先的本地漫画阅读器。目前提供 macOS、Android 与 Windows 版本，支持在设备上直接阅读用户合法拥有的图片、PDF、EPUB、MOBI，以及其他逐步完善中的本地漫画格式；Windows 版还可直接阅读 ZIP/CBZ 图片压缩包。项目不提供、分发或索引任何漫画内容。
 
 它面向那些在意阅读顺序、双页跨页和本地文件掌控感的读者：EPUB 以 spine 顺序为准，阅读方向和双页位置可分别调整；对横置跨页及相邻双图跨页提供保守的自动分析，并始终保留逐页手动纠正。阅读进度、书签和显示偏好只保存在本机，原始文件不会被修改。
 
@@ -10,9 +10,19 @@
 
 水漫将大跨页作为核心阅读体验：遇到已确认的横向跨页时，画面会独占显示并完整适配；对两张相邻图片构成的跨页，会结合接缝、物理左右位置与阅读顺序做保守分析、自动组合。对于竖着存储的横向内容，应用还会结合出版物样式和文字方向线索建议转正。自动判断始终可以被手动旋转、配对、交换左右、取消或恢复，且手动修正优先于后续分析；无字、少字或接缝不明显的页面仍可能需要人工确认。
 
-macOS 端基于 Swift、SwiftUI 与 AppKit，Android 端基于 Kotlin 与 Jetpack Compose；Windows 版本已列入计划，尚未确定实现与发布日期。项目在开发者主导下，借助 **OpenAI Codex** 协作实现、测试和迭代。
+macOS 端基于 Swift、SwiftUI 与 AppKit，Android 端基于 Kotlin 与 Jetpack Compose，Windows 端基于 C#、.NET 10 与 WPF。项目在开发者主导下，借助 **OpenAI Codex** 协作实现、测试和迭代。
 
 当前版本 **0.5.0**，macOS 面向 Apple Silicon、部署目标 macOS 14+；本次在 macOS 15.7.3 验证。
+
+Windows 首版 **0.6.0** 面向 Windows 10 2004+ / Windows 11 x64。完整解压 Windows 发行包后，双击 `ShuiMan.exe`；也可运行 `Install.cmd` 安装到当前用户并创建快捷方式。便携包自带 .NET，复杂 EPUB 页面需要 WebView2。完整功能、格式限制、构建步骤见 [Windows 说明](windows/README.md)，测试结果见 [Windows 验证记录](docs/windows-validation.md)。
+
+在 Windows 上从源码构建：
+
+```powershell
+.\scripts\windows-build.ps1
+```
+
+输出：`build/windows/ShuiMan/ShuiMan.exe` 和 `build/windows/ShuiMan-Windows-x64.zip`。支持 ZIP/CBZ 中文文件名、嵌套目录、自然数字排序，以及书库、进度、书签、缩放、双页和手动跨页修正。
 
 本项目以 [Apache License 2.0](LICENSE) 发布。
 

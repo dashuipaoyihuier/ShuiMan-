@@ -1,0 +1,34 @@
+name: Windows
+
+on:
+  push:
+    paths: ['windows/**', 'scripts/windows-*.ps1', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['windows/**', 'scripts/windows-*.ps1', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Regression checks and self-contained publish
+        shell: pwsh
+        run: ./scripts/windows-build.ps1
+      - name: WebView2 integration checks when runtime is available
+        shell: pwsh
+        run: ./scripts/windows-ui-test.ps1
+      - name: Upload portable application
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShuiMan-Windows-x64
+          path: |
+            build/windows/ShuiMan-Windows-x64.zip
+            build/windows/ShuiMan-Windows-x64.zip.sha256
+          if-no-files-found: error

@@ -1,0 +1,36 @@
+ShuiMan for Windows - third-party notices
+
+The distribution includes the following unmodified third-party components.
+Their respective licenses and copyright notices apply to those components.
+
+Magick.NET-Q8-x64 and Magick.NET.Core 14.17.1
+Copyright 2013-2026 Dirk Lemstra. Apache License 2.0.
+Source: https://github.com/dlemstra/Magick.NET/tree/298053457c16f413a9df6edaca668b12289bea2d
+Package: https://www.nuget.org/packages/Magick.NET-Q8-x64/14.17.1
+See licenses/Apache-2.0.txt and licenses/Magick.NET.Core-14.17.1-Copyright.txt.
+
+Magick.NET includes ImageMagick 7.1.2-31 and native codec dependencies.
+ImageMagick is Copyright ImageMagick Studio LLC.
+The COMPLETE upstream Notice.txt, including ImageMagick and the individual
+native dependencies' licenses, is redistributed without modification as
+licenses/Magick.NET-14.17.1-Notice.txt. This includes the native libraries
+used for TIFF, JPEG, PNG, WebP, AVIF, HEIF, JPEG XL and color management,
+as well as other libraries included in the upstream native build.
+Native build/source project: https://github.com/dlemstra/Magick.Native
+ImageMagick source: https://github.com/ImageMagick/ImageMagick/tree/7.1.2-31
+The native Magick.Native-Q8-x64.dll is supplied as a separate DLL alongside
+the application and is not embedded into the ShuiMan executable.
+
+AngleSharp 1.8.1
+Copyright (c) 2013-2026 AngleSharp. MIT License.
+Source: https://github.com/AngleSharp/AngleSharp/tree/bbd0ad75e9cfc4d5fc0106803fff52c25cac0d9e
+See licenses/AngleSharp-1.8.1-LICENSE.txt.
+
+Microsoft .NET and Microsoft Edge WebView2 are Microsoft components.
+The self-contained .NET runtime's upstream license and third-party notice
+files are included under licenses/microsoft.netcore.app.runtime.win-x64-*
+and licenses/microsoft.windowsdesktop.app.runtime.win-x64-*.
+WebView2 is governed by its Microsoft SDK/runtime license; its package
+notice is also included in the licenses directory.
+
+ShuiMan does not modify or claim authorship of these third-party components.

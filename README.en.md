@@ -2,9 +2,17 @@
 
 [简体中文](README.md) · [Open-source notes](docs/OPEN_SOURCE.en.md)
 
-ShuiMan is a privacy-first offline reader for locally owned comics and books. It currently has macOS and Android implementations. Windows is planned, with no implementation choice or release date yet.
+ShuiMan is a privacy-first offline reader for locally owned comics and books. It has macOS, Android, and Windows implementations. The Windows client uses C# / .NET 10 / WPF and directly reads ZIP/CBZ image archives, including nested folders, Chinese filenames, and natural numeric page ordering.
 
 The project supports local image folders, PDF, EPUB, and additional local formats as they mature. It does not provide, distribute, index, or fetch comic content. Reading progress, bookmarks, and display preferences stay on the device; source files are never modified.
+
+## Windows 0.6.0
+
+Requires Windows 10 version 2004+ or Windows 11, x64. Extract the complete Windows distribution and run `ShuiMan.exe`, or run `Install.cmd` to install for the current user. The portable distribution includes .NET; complex EPUB pages use Microsoft Edge WebView2, checked by the optional installer.
+
+With .NET 10 SDK installed, run `./scripts/windows-build.ps1` from PowerShell. The script runs regression checks and creates `build/windows/ShuiMan/ShuiMan.exe` and `build/windows/ShuiMan-Windows-x64.zip`. The client includes a local library, persistent reading progress, bookmarks, single/double pages, direction, zoom, fullscreen, and manual spread corrections.
+
+See [Windows documentation](windows/README.md) and [actual validation results](docs/windows-validation.md) for supported formats, build details, and known limitations. The macOS and Android build entry points remain independent.
 
 ## Highlight: intelligent spread reading
 
