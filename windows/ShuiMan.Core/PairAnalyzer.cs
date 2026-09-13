@@ -6,7 +6,7 @@ namespace ShuiMan.Core;
 /// <summary>Conservative seam evidence ported from ComicCore and Android seam-scale-offset-v2.</summary>
 public static class PairAnalyzer
 {
-    public const string AlgorithmVersion = "seam-scale-offset-v3-suggestions";
+    public const string AlgorithmVersion = "seam-scale-offset-v4-antialias";
     private const int AnalysisHeight = 384;
     private record Features(double[] Left, double[] Right, double[] Thumbnail);
     private record Candidate(bool Swapped, double VerticalOffset = 0, double RightScale = 1,
@@ -96,11 +96,48 @@ public static class PairAnalyzer
             for (var x = start; x < end; x++) result[y] += pixels[y * width + x];
             result[y] /= end - start;
         }
-        return result;
+        // Comic screen tones carry unrelated high-frequency dots at a cut edge.
+        // Compare the underlying linework after a small symmetric low-pass filter;
+        // all texture, band, error and placement tests still apply to this profile.
+        var filtered = new double[result.Length];
+        for (int y = 0; y < result.Length; y++)
+            filtered[y] = (result[Math.Max(0, y - 1)] + 2 * result[y] + result[Math.Min(result.Length - 1, y + 1)]) / 4;
+        return filtered;
     }
 
     private static double[] Resample(double[] source, int sourceWidth, int sourceHeight, int targetWidth, int targetHeight)
     {
+        // Point/bilinear sampling aliases scan dots when shrinking a full page to
+        // 384 rows. Integrate every source pixel covered by each output pixel,
+        // matching the anti-aliasing intent of CoreGraphics high-quality drawing.
+        if (targetWidth < sourceWidth && targetHeight < sourceHeight)
+        {
+            var horizontal = new double[targetWidth * sourceHeight];
+            for (int y = 0; y < sourceHeight; y++)
+                for (int x = 0; x < targetWidth; x++)
+                {
+                    double begin = (double)x * sourceWidth / targetWidth;
+                    double end = (double)(x + 1) * sourceWidth / targetWidth;
+                    double sum = 0;
+                    for (int sx = (int)begin; sx < (int)Math.Ceiling(end); sx++)
+                        sum += source[y * sourceWidth + Math.Clamp(sx, 0, sourceWidth - 1)] *
+                            Math.Max(0, Math.Min(end, sx + 1) - Math.Max(begin, sx));
+                    horizontal[y * targetWidth + x] = sum / (end - begin);
+                }
+            var averaged = new double[targetWidth * targetHeight];
+            for (int y = 0; y < targetHeight; y++)
+                for (int x = 0; x < targetWidth; x++)
+                {
+                    double begin = (double)y * sourceHeight / targetHeight;
+                    double end = (double)(y + 1) * sourceHeight / targetHeight;
+                    double sum = 0;
+                    for (int sy = (int)begin; sy < (int)Math.Ceiling(end); sy++)
+                        sum += horizontal[Math.Clamp(sy, 0, sourceHeight - 1) * targetWidth + x] *
+                            Math.Max(0, Math.Min(end, sy + 1) - Math.Max(begin, sy));
+                    averaged[y * targetWidth + x] = sum / (end - begin);
+                }
+            return averaged;
+        }
         var result = new double[targetWidth * targetHeight];
         for (var y = 0; y < targetHeight; y++)
             for (var x = 0; x < targetWidth; x++)

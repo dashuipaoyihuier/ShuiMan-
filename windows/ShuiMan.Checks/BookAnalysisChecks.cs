@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ShuiMan.Core;
 
@@ -62,6 +63,66 @@ internal static partial class Program
                 new InlineProgress<BookAnalysisProgress>(resumeProgress.Add)).GetAwaiter().GetResult();
             True(resumed.IsComplete && resumeProgress[0].FromCache && resumeProgress[0].Decisions.Count == 2, "reopening resumes the partial automatic result");
             True(resumeProgress.Skip(1).All(value => !value.Decisions.ContainsKey(publication.Units[0].Id) && !value.Decisions.ContainsKey(publication.Units[1].Id)), "finished orientation entries are not rerun");
+        });
+
+        Check("whole-book priority starts at the current page and publishes forward work before filling earlier pages", () =>
+        {
+            var publication = AnalysisPublication("priority-forward-book", 6);
+            var images = Enumerable.Range(0, 6).Select(AnalysisPageFixture).ToArray();
+            var renders = new List<int>();
+            var reportedPages = new List<int>();
+            var reportedPairs = new List<int>();
+            var cache = new AnalysisCache(Path.Combine(root, "priority-forward-cache"));
+            var result = new BookAnalysisService(cache).AnalyzeAsync(publication, (index, _, _) =>
+            {
+                if (index == 4) Sequence([3], reportedPages, "the current-page decision arrives before decoding the next page");
+                renders.Add(index);
+                return Task.FromResult(images[index]);
+            }, new InlineProgress<BookAnalysisProgress>(value =>
+            {
+                reportedPages.AddRange(value.Decisions.Keys.Select(id => publication.Units.FindIndex(unit => unit.Id == id)));
+                reportedPairs.AddRange(value.Pairs.Keys);
+            }), startIndex: 3).GetAwaiter().GetResult();
+            Sequence([3, 2, 4, 5], renders.Take(4), "decode current page first, its required physical predecessor, then following pages");
+            Sequence([3, 4, 5, 0, 1, 2], reportedPages, "forward pages are published individually before earlier pages, without skipping any source position");
+            Sequence(Enumerable.Range(0, 5), reportedPairs.Order(), "each real adjacent seam is reported once, never last-to-first");
+            True(result.IsComplete && result.CompletedPages.SetEquals(Enumerable.Range(0, 6)), "priority scanning finishes the whole source");
+            for (int index = 1; index < 5; index++)
+                Equal(PairAnalyzer.Analyze(images[index], images[index + 1], index), result.Pairs[index], "priority boundaries retain the correct physical image pair");
+        });
+
+        Check("whole-book priority resumes a partial checkpoint from a new reading position without recalculating completed work", () =>
+        {
+            var publication = AnalysisPublication("priority-resume-book", 6);
+            var images = Enumerable.Range(0, 6).Select(AnalysisPageFixture).ToArray();
+            var cache = new AnalysisCache(Path.Combine(root, "priority-resume-cache"));
+            var service = new BookAnalysisService(cache);
+            using var stop = new CancellationTokenSource();
+            bool cancelled = false;
+            try
+            {
+                service.AnalyzeAsync(publication, (index, _, _) => Task.FromResult(images[index]),
+                    new InlineProgress<BookAnalysisProgress>(value => { if (value.CompletedPages == 2) stop.Cancel(); }),
+                    stop.Token, startIndex: 4).GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException) { cancelled = true; }
+            var partial = cache.LoadAsync(publication).GetAwaiter().GetResult();
+            True(cancelled && partial.CompletedPages.SetEquals([4, 5]) && partial.CompletedPairs.SetEquals([3, 4]), "cancellation stores actual completed source indices, not a sequential prefix");
+            var renders = new List<int>();
+            var changes = new List<int>();
+            var resumed = service.AnalyzeAsync(publication, (index, _, _) =>
+            {
+                renders.Add(index); return Task.FromResult(images[index]);
+            }, new InlineProgress<BookAnalysisProgress>(value =>
+            {
+                if (!value.FromCache) changes.AddRange(value.Decisions.Keys.Select(id => publication.Units.FindIndex(unit => unit.Id == id)));
+            }), startIndex: 2).GetAwaiter().GetResult();
+            Equal(2, renders[0], "resuming prioritizes the newly requested page");
+            Sequence([2, 3, 0, 1], changes, "resume only publishes unfinished pages in the new priority order");
+            True(!renders.Contains(4) && !renders.Contains(5), "completed tail pages and seams require no further image decode");
+            True(resumed.IsComplete && resumed.CacheKey == partial.CacheKey && partial.Pairs.All(item => resumed.Pairs[item.Key] == item.Value), "priority preserves cached seam decisions and cache identity");
+            var reopened = service.AnalyzeAsync(publication, (_, _, _) => throw new InvalidOperationException("Changing scan priority must not invalidate a completed cache."), startIndex: 5).GetAwaiter().GetResult();
+            True(reopened.IsComplete && reopened.CacheKey == resumed.CacheKey, "a completed cache remains reusable from any reading position");
         });
 
         Check("whole-book analysis rejects stale source, locator, publisher and algorithm cache identities", () =>
@@ -134,6 +195,20 @@ internal static partial class Program
         Units = Enumerable.Range(0, count).Select(index => new ReadingUnit
         { Locator = new($"generated-{index}.png"), Width = 900, Height = 1200, IsCover = index == 0, RotationHint = 0 }).ToList()
     };
+
+    private static BitmapSource AnalysisPageFixture(int page)
+    {
+        const int width = 384, height = 512;
+        var pixels = new byte[width * height];
+        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+        {
+            double phase = (x + page * width) * .008;
+            double value = .50 + .17 * Math.Sin(y * .049 + phase) + .15 * Math.Sin(y * .117 + phase * .8) + .13 * Math.Cos(y * .189 - phase * 1.2);
+            pixels[y * width + x] = (byte)Math.Round(Math.Clamp(value, 0, 1) * 255);
+        }
+        var bitmap = BitmapSource.Create(width, height, 96, 96, PixelFormats.Gray8, null, pixels, width);
+        bitmap.Freeze(); return bitmap;
+    }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T> { public void Report(T value) => report(value); }
 }

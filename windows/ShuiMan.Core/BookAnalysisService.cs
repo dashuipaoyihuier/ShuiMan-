@@ -9,8 +9,9 @@ public sealed record BookAnalysisProgress(int CompletedPages, int TotalPages,
     bool IsComplete = false, bool FromCache = false, string? Warning = null);
 
 /// <summary>
-/// Scans the whole publication in source order on a worker. Only the current and previous analysis
-/// images are held; callers serialize rendering with their publication lifetime, releasing their lock before OCR.
+/// Scans from the requested reading position to the end, then fills preceding pages on a worker.
+/// Only the current and previous analysis images are held; callers serialize rendering with their
+/// publication lifetime, releasing their lock before OCR. Priority does not change cache identities.
 /// </summary>
 public sealed class BookAnalysisService(AnalysisCache cache)
 {
@@ -18,7 +19,7 @@ public sealed class BookAnalysisService(AnalysisCache cache)
 
     public Task<BookAnalysisSnapshot> AnalyzeAsync(Publication publication,
         Func<int, int, CancellationToken, Task<BitmapSource>> render,
-        IProgress<BookAnalysisProgress>? progress = null, CancellationToken cancellationToken = default)
+        IProgress<BookAnalysisProgress>? progress = null, CancellationToken cancellationToken = default, int startIndex = 0)
     {
         ArgumentNullException.ThrowIfNull(publication); ArgumentNullException.ThrowIfNull(render);
         return Task.Run(async () =>
@@ -36,9 +37,14 @@ public sealed class BookAnalysisService(AnalysisCache cache)
             var failedThisRun = new HashSet<int>();
             try
             {
-                for (int index = 0; index < publication.Units.Count; index++)
+                int pageCount = publication.Units.Count;
+                int firstIndex = Math.Clamp(startIndex, 0, Math.Max(0, pageCount - 1));
+                for (int offset = 0; offset < pageCount; offset++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    int index = (int)(((long)firstIndex + offset) % pageCount);
+                    // Visiting a page out of source order never makes it adjacent to the prior
+                    // visited page. The seam always uses this page and its physical predecessor.
                     var unit = publication.Units[index];
                     var orientationDelta = new Dictionary<string, SpreadDecision>();
                     var pairDelta = new Dictionary<int, PairDecision>();
@@ -103,7 +109,7 @@ public sealed class BookAnalysisService(AnalysisCache cache)
                     previous = nextPairPending && EligiblePair(publication, index) ? current : null;
                     previousIndex = previous == null ? -1 : index;
                     // Checkpoint early, periodically, and on exit; avoid quadratic disk writes for long books.
-                    if (dirty && (index == 0 || changesSinceCheckpoint >= 8 || checkpoint.Elapsed >= TimeSpan.FromSeconds(2)))
+                    if (dirty && (offset == 0 || changesSinceCheckpoint >= 8 || checkpoint.Elapsed >= TimeSpan.FromSeconds(2)))
                     {
                         await cache.SaveAsync(publication, result, cancellationToken).ConfigureAwait(false);
                         dirty = false; changesSinceCheckpoint = 0; checkpoint.Restart();

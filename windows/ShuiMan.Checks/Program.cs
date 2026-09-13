@@ -65,6 +65,7 @@ internal static partial class Program
             LayoutChecks();
             PairChecks();
             PairPolicyChecks();
+            PairSamplingChecks();
             OrientationChecks();
             BookAnalysisChecks(root);
             StorageChecks(root);
@@ -470,7 +471,7 @@ internal static partial class Program
         Check("moderately noisy continuous artwork retains a cautious seam suggestion", () =>
         {
             var left = Page(false);
-            var noisy = Page(true).Select((value, index) => Math.Clamp(value + .22 * Math.Sin(index / width * .397), 0, 1)).ToArray();
+            var noisy = Page(true).Select((value, index) => Math.Clamp(value + .30 * Math.Sin(index / width * .397), 0, 1)).ToArray();
             var decision = Analyze(left, noisy);
             True(decision.Suggested && !decision.Automatic, $"moderate seam is suggested without claiming strict confidence: {decision}");
             True(decision.Correlation >= .64 && decision.MatchingBands >= 3 && decision.PlacementMargin >= .10, "independent texture bands and physical-side evidence remain required");

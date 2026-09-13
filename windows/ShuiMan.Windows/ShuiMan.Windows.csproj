@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="../ShuiMan.Core/ShuiMan.Core.csproj" />
     <Resource Include="../../Resources/WaterCover.png" Link="Assets/WaterCover.png" />
+    <Resource Include="AppIcon.png" />
   </ItemGroup>
 </Project>

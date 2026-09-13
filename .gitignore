@@ -70,3 +70,4 @@ windows/.vs/
 # Windows 0.7 original demo UI screenshots
 !docs/images/windows-library-070.png
 !docs/images/windows-reader-070.png
+!windows/ShuiMan.Windows/AppIcon.png

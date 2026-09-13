@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private Task _analysisTask = Task.CompletedTask;
     private int _foregroundReaders;
     private string? _displaySignature;
+    private bool _analysisRefreshQueued;
     private IOpenBook? _book;
     private SavedBook? _saved;
     private readonly Dictionary<string, SpreadDecision> _decisions = [];
@@ -181,15 +182,15 @@ public partial class MainWindow : Window
         (item.Key == 0 || _pairs.ContainsKey(item.Key - 1)) &&
         (item.Key >= _book!.Publication.Units.Count - 2 || _pairs.ContainsKey(item.Key + 1))
             ? item.Value : item.Value with { Automatic = false, Suggested = false });
-    private async Task ShowPageAsync(int index)
+    private Task ShowPageAsync(int index) => ShowPageCoreAsync(index, preserveDisplayedPage: false);
+    private async Task ShowPageCoreAsync(int index, bool preserveDisplayedPage)
     {
         if (_book == null || _saved == null || _closing) return;
         _index = Math.Clamp(index, 0, _book.Publication.Units.Count - 1);
         _renderCancellation.Cancel(); _renderCancellation.Dispose(); _renderCancellation = new();
         var token = _renderCancellation.Token; var targetBook = _book;
         Interlocked.Increment(ref _foregroundReaders);
-        ApplyAnalysisButton.Visibility = Visibility.Collapsed;
-        Surface.Visibility = Visibility.Hidden; _displayGroup = null;
+        if (!preserveDisplayedPage) { Surface.Visibility = Visibility.Hidden; _displayGroup = null; }
         CorrectionButton.IsEnabled = false; BookmarkButton.IsEnabled = false;
         StatusText.Text = $"正在准备第 {_index + 1} 页…";
         Busy("正在绘制页面…");
@@ -248,7 +249,7 @@ public partial class MainWindow : Window
             if (!token.IsCancellationRequested && targetBook == _book && !_closing)
             {
                 Surface.Visibility = Visibility.Visible; CorrectionButton.IsEnabled = true; BookmarkButton.IsEnabled = true;
-                UpdateAnalysisSuggestion();
+                ApplyIncrementalAnalysis();
             }
             Busy(null);
         }
@@ -391,21 +392,33 @@ public partial class MainWindow : Window
         _decisions.Clear(); _pairs.Clear(); StartBookAnalysis(targetBook);
         StatusText.Text = "已重新开始整本后台分析，阅读可以继续";
     });
-    private async void ApplyAnalysisClick(object sender, RoutedEventArgs e) => await Run(() => ShowPageAsync(_index));
     private string GroupSignature(DisplayGroup group, IReadOnlyDictionary<int, int>? rotations = null) =>
         string.Join(",", group.Indices.Select(index => $"{index}:{rotations?.GetValueOrDefault(index) ?? LayoutEngine.Rotation(_book!.Publication.Units[index], _saved!, _decisions)}")) +
         $"/{group.Spread}/{group.VerticalOffset:R}/{group.RightScale:R}";
-    private void UpdateAnalysisSuggestion()
+    private void ApplyIncrementalAnalysis()
     {
         if (_closing || _book == null || _saved == null || _displayGroup == null || _foregroundReaders != 0) return;
-        var updated = LayoutEngine.Groups(_book.Publication, _saved, _decisions, ReadyPairs()).First(group => group.Indices.Contains(_index));
-        ApplyAnalysisButton.Visibility = GroupSignature(updated) != _displaySignature ? Visibility.Visible : Visibility.Collapsed;
+        RebuildGroups();
+        var updated = _groups.First(group => group.Indices.Contains(_index));
+        if (GroupSignature(updated) == _displaySignature || _analysisRefreshQueued) return;
+        _analysisRefreshQueued = true;
+        var targetBook = _book;
+        _ = Dispatcher.InvokeAsync(async () =>
+        {
+            _analysisRefreshQueued = false;
+            if (_closing || targetBook != _book || _saved == null || _foregroundReaders != 0 || _displayGroup == null) return;
+            RebuildGroups();
+            var current = _groups.First(group => group.Indices.Contains(_index));
+            if (GroupSignature(current) != _displaySignature)
+                await Run(() => ShowPageCoreAsync(_index, preserveDisplayedPage: true));
+        }, System.Windows.Threading.DispatcherPriority.Background);
     }
     private void StartBookAnalysis(IOpenBook targetBook)
     {
         if (_closing || targetBook != _book) return;
         _analysisCancellation.Cancel(); _analysisCancellation.Dispose(); _analysisCancellation = new();
         var token = _analysisCancellation.Token;
+        int analysisStartIndex = _index;
         AnalysisStatusText.Text = $"整本分析 0 / {targetBook.Publication.Units.Count}";
         var progress = new Progress<BookAnalysisProgress>(update =>
         {
@@ -413,14 +426,8 @@ public partial class MainWindow : Window
             foreach (var item in update.Decisions) _decisions[item.Key] = item.Value;
             foreach (var item in update.Pairs) _pairs[item.Key] = item.Value;
             AnalysisStatusText.Text = update.IsComplete ? $"整本分析完成 · {update.TotalPages} 页" : $"整本分析 {update.CompletedPages} / {update.TotalPages}";
-            AnalysisStatusText.ToolTip = update.Warning ?? "打开书籍后持续分析整本，结果缓存于本机；翻页直接使用已完成的结果。";
-            if (_displayGroup != null && _foregroundReaders == 0)
-            {
-                int first = _displayGroup.Indices.Min(), last = _displayGroup.Indices.Max();
-                bool nearby = update.IsComplete || update.Pairs.Keys.Any(index => index >= first - 2 && index <= last + 2) ||
-                    update.Decisions.Keys.Any(id => _displayGroup.Indices.Any(index => targetBook.Publication.Units[index].Id == id));
-                if (nearby) UpdateAnalysisSuggestion();
-            }
+            AnalysisStatusText.ToolTip = update.Warning ?? "从当前页往后逐页识别并立即应用，随后补齐前面的页面；结果缓存于本机。";
+            if (update.Decisions.Count > 0 || update.Pairs.Count > 0) ApplyIncrementalAnalysis();
         });
         _analysisTask = Task.Run(async () =>
         {
@@ -438,7 +445,7 @@ public partial class MainWindow : Window
                         return await targetBook.RenderAsync(page, edge, cancellation);
                     }
                     finally { _io.Release(); }
-                }, progress, token);
+                }, progress, token, startIndex: analysisStartIndex);
                 if (!completed.IsComplete)
                     await Dispatcher.InvokeAsync(() =>
                     {

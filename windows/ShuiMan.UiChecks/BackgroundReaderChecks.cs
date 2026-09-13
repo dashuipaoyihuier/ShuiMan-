@@ -81,6 +81,8 @@ internal static partial class Program
         await BackgroundCloseCheck(root, longBook, longPublication);
         await BackgroundReanalysisSwitchCheck(root, data, shortBook);
         await BackgroundDrawingCompletionCheck(data, shortBook);
+        await BackgroundIncrementalCheck(data, shortBook, rotation: false);
+        if (cjkAvailable) await BackgroundIncrementalCheck(data, shortBook, rotation: true);
     }
 
     private static async Task BackgroundReanalysisSwitchCheck(string root, string data, string initialBook)
@@ -152,21 +154,76 @@ internal static partial class Program
             gated.Release.TrySetResult();
             await render.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitReaderPage(reader, 2, 6);
-            var apply = (Button)reader.FindName("ApplyAnalysisButton");
-            bool oldImageKeptWithPrompt = apply.Visibility == Visibility.Visible &&
-                !ReaderField<DisplayGroup>(reader, "_displayGroup").Spread && ReaderField<List<BitmapSource>>(reader, "_displayImages").Count == 1;
-            apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitUntil(() => ReaderField<DisplayGroup>(reader, "_displayGroup") is { Spread: true } &&
+                ReaderField<List<BitmapSource>>(reader, "_displayImages").Count == 2 && !((FrameworkElement)reader.FindName("BusyBanner")).IsVisible,
+                "analysis arriving during a draw is applied automatically after foreground drawing finishes");
             await WaitReaderPage(reader, 2, 6);
             var displayed = ReaderField<DisplayGroup>(reader, "_displayGroup");
-            Check("analysis finishing during a foreground draw leaves an apply prompt and its real button then displays the completed spread",
-                oldImageKeptWithPrompt && displayed.Spread && displayed.Indices.SequenceEqual([1, 2]) &&
-                ReaderField<List<BitmapSource>>(reader, "_displayImages").Count == 2 && apply.Visibility == Visibility.Collapsed);
+            Check("analysis finishing during a foreground draw automatically displays the completed spread without a user action",
+                displayed.Spread && displayed.Indices.SequenceEqual([1, 2]) &&
+                ReaderField<List<BitmapSource>>(reader, "_displayImages").Count == 2 && ((TextBox)reader.FindName("PageNumber")).Text == "2");
         }
         finally { gated?.Release.TrySetResult(); await CloseWindow(reader); }
     }
 
     private static void SetReaderField(MainWindow reader, string name, object value) =>
         typeof(MainWindow).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(reader, value);
+
+    private static async Task BackgroundIncrementalCheck(string data, string initialBook, bool rotation)
+    {
+        var reader = BackgroundWindow(data, initialBook);
+        BackgroundProgressGate? paused = null;
+        try
+        {
+            reader.Show();
+            await WaitUntil(() => !((FrameworkElement)reader.FindName("BusyBanner")).IsVisible &&
+                ((TextBlock)reader.FindName("PageTotal")).Text == " / 6", "incremental reader opens its six-page source");
+            await ReaderField<Task>(reader, "_analysisTask").WaitAsync(TimeSpan.FromSeconds(20));
+            var source = ReaderField<IOpenBook>(reader, "_book");
+            await new AnalysisCache(Path.Combine(data, "analysis")).InvalidateAsync(source.Publication);
+            ReaderField<Dictionary<string, SpreadDecision>>(reader, "_decisions").Clear();
+            ReaderField<Dictionary<int, PairDecision>>(reader, "_pairs").Clear();
+            int page = rotation ? 5 : 1;
+            var draw = (Task)typeof(MainWindow).GetMethod("ShowPageAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(reader, [page])!;
+            await draw.WaitAsync(TimeSpan.FromSeconds(10));
+            var dispatcher = SynchronizationContext.Current ?? throw new InvalidOperationException("Expected the UI dispatcher context.");
+            paused = new BackgroundProgressGate(dispatcher, update => rotation
+                ? update.Decisions.ContainsKey(source.Publication.Units[page].Id) : update.Pairs.ContainsKey(2));
+            SynchronizationContext.SetSynchronizationContext(paused);
+            try { typeof(MainWindow).GetMethod("StartBookAnalysis", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(reader, [source]); }
+            finally { SynchronizationContext.SetSynchronizationContext(dispatcher); }
+            await paused.Entered.Task.WaitAsync(TimeSpan.FromSeconds(20));
+            await WaitUntil(() =>
+            {
+                var images = ReaderField<List<BitmapSource>>(reader, "_displayImages");
+                return !((FrameworkElement)reader.FindName("BusyBanner")).IsVisible && (rotation
+                    ? images.Count == 1 && images[0].PixelHeight > images[0].PixelWidth
+                    : images.Count == 2 && ReaderField<DisplayGroup>(reader, "_displayGroup").Spread);
+            }, "completed page evidence updates the displayed pixels while later analysis is still blocked");
+            Check(rotation
+                    ? "a newly recognized sideways page visibly rotates before the unfinished book scan completes"
+                    : "a newly recognized spread visibly joins before the unfinished book scan completes",
+                !ReaderField<Task>(reader, "_analysisTask").IsCompleted &&
+                !((TextBlock)reader.FindName("AnalysisStatusText")).Text.Contains("整本分析完成") &&
+                ((TextBox)reader.FindName("PageNumber")).Text == (page + 1).ToString(CultureInfo.InvariantCulture));
+        }
+        finally { paused?.Release.TrySetResult(); await CloseWindow(reader); }
+    }
+
+    // Pause the worker between progress delivery and its next page, outside document I/O.
+    // The real dispatcher still handles the actual incremental page result and drawing.
+    private sealed class BackgroundProgressGate(SynchronizationContext dispatcher, Func<BookAnalysisProgress, bool> pause) : SynchronizationContext
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int remaining = 1;
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            dispatcher.Post(callback, state);
+            if (state is BookAnalysisProgress update && pause(update) && Interlocked.Exchange(ref remaining, 0) == 1)
+            { Entered.TrySetResult(); Release.Task.GetAwaiter().GetResult(); }
+        }
+    }
 
     private static Task RaiseBackgroundMenu(MenuItem item)
     {

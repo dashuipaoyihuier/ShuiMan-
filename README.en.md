@@ -12,9 +12,11 @@ The project supports local image folders, PDF, EPUB, and additional local format
 
 Requires Windows 10 version 2004+ or Windows 11, x64. The Chinese installer includes .NET, installs for the current user, supports upgrades and standard Windows uninstallation, and preserves the library and source books. Desktop shortcuts and Open With integration are optional. EPUB comic images use the native reader canvas without a browser runtime.
 
-This release rebuilds the Windows library and shell with a quiet, light visual style: a series cover homepage opening naturally ordered volumes, grid and list views, resume reading, favorites, read-state filters, series browsing, editable titles/series/tags, and search. Source folders are remembered and scanned every minute or on demand; removing a source stops scanning while preserving books and progress. Cover decoding runs in the background with a bounded cache. Reader saves preserve library metadata changed in another window.
+This release rebuilds the Windows library and shell with a quiet, light visual style: a series cover homepage opening naturally ordered volumes, grid and list views, resume reading, favorites, read-state filters, series browsing, editable titles/series/tags, and search. The window header, taskbar, application, and installer reuse the original macOS book-and-wave icon. Source folders are remembered and scanned every minute or on demand; removing a source stops scanning while preserving books and progress. Cover decoding runs in the background with a bounded cache. Reader saves preserve library metadata changed in another window.
 
-ZIP/CBZ reading, natural ordering, Chinese archive paths, PDF, multi-frame TIFF, spine-preserving EPUB image reading, MOBI 6 image comics, and manual spread corrections remain available. Manual rotation wins first, explicit EPUB rotation metadata second; only pages without hints use OCR and physical glyph analysis. Opening a book starts a complete background scan with persistent checkpoints; navigation uses already computed results. Seam adjustments now use sliders. C# / .NET 10 / WPF remains the native Windows stack; macOS and Android build entry points stay independent.
+ZIP/CBZ reading, natural ordering, Chinese archive paths, PDF, multi-frame TIFF, spine-preserving EPUB image reading, MOBI 6 image comics, and manual spread corrections remain available. Manual rotation wins first, explicit EPUB rotation metadata second; only pages without hints use OCR and physical glyph analysis.
+
+Opening a book starts analysis from the current reading position toward the end, then fills in earlier pages. Each completed orientation or adjacent-seam result takes effect immediately, including an automatic redraw of the current page. Results arriving during a redraw are applied in a following redraw without a confirmation button. Persistent checkpoints support reuse and unfinished scans. Spread analysis now uses antialiased image reduction and lightly smoothed edge profiles to reduce interference from comic screen tones, while keeping the existing acceptance thresholds. Seam adjustments use sliders. C# / .NET 10 / WPF remains the native Windows stack; macOS and Android build entry points stay independent.
 
 ![Windows cover library with original demonstration books](docs/images/windows-library-070.png)
 
@@ -66,7 +68,7 @@ Organize local books by series and view volumes, reading states, and progress. O
 
 - **macOS:** Swift, SwiftUI, AppKit, and SwiftPM. macOS 14+ is the current target.
 - **Android:** Kotlin and Jetpack Compose.
-- **Windows:** planned.
+- **Windows:** C#, .NET 10, and WPF; Windows 10 version 2004+ and Windows 11, x64.
 
 The project is developed under developer direction with assistance from **OpenAI Codex** for implementation, testing, and iteration.
 
@@ -84,7 +86,7 @@ The macOS project uses SwiftPM. The Android project lives in `android/`. Public 
 ## Current capabilities
 
 - Natural ordering for image folders; static image support through system decoders.
-- Per-page PDF loading and password input; EPUB reading in spine order, with WebKit fallback for complex layouts.
+- Per-page PDF loading and password input; EPUB reading in spine order. Windows uses native comic-image rendering; the macOS implementation also has a WebKit path for complex layouts.
 - Single-page and two-page views, LTR/RTL reading direction, thumbnails, bookmarks, zoom, and fullscreen.
 - Spread detection, page rotation hints, manual spread corrections, and persistent local reading preferences.
 
