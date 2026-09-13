@@ -204,13 +204,26 @@ internal static class Program
         });
         Check("PDF count dimensions and raster render", () =>
         {
-            using var book = Open(Path.Combine(root, "sample.pdf"));
+            var path = Path.Combine(root, "sample.pdf");
+            using var book = Open(path);
             Equal(2, book.Publication.Units.Count, "PDF count");
             var first = book.RenderAsync(0, 400).GetAwaiter().GetResult();
             var second = book.RenderAsync(1, 400).GetAwaiter().GetResult();
             True(first.PixelHeight > first.PixelWidth, "PDF first page portrait");
             True(second.PixelWidth > second.PixelHeight, "PDF second page landscape");
             True(Pixels(first).Distinct().Count() > 2, "PDF contains rendered artwork");
+            book.Dispose();
+            using (var exclusive = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                True(exclusive.Length > 0, "PDF dispose releases source handle without garbage collection");
+            var disposedRenderRejected = false;
+            try { book.RenderAsync(0).GetAwaiter().GetResult(); }
+            catch (ObjectDisposedException) { disposedRenderRejected = true; }
+            True(disposedRenderRejected, "disposed PDF rejects rendering");
+            var invalid = Path.Combine(root, "invalid-pdf.pdf");
+            File.WriteAllText(invalid, "Not a PDF document");
+            ExpectOpenFailure(invalid);
+            using var failedExclusive = new FileStream(invalid, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            True(failedExclusive.Length > 0, "failed PDF open releases owned source handle");
         });
         Check("complex EPUB preserves HTML CSS and image resources", () =>
         {

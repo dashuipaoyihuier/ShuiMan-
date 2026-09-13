@@ -1,22 +1,23 @@
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Windows.Data.Pdf;
-using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace ShuiMan.Core;
 
 internal sealed class PdfBook : IOpenBook
 {
-    private readonly PdfDocument document;
+    private PdfDocument? document;
+    private FileStream? sourceFile;
+    private IRandomAccessStream? sourceStream;
     private readonly SemaphoreSlim renderGate = new(1, 1);
-    private bool disposed;
+    private volatile bool disposed;
     public Publication Publication { get; }
-    private PdfBook(string path, PdfDocument document)
+    private PdfBook(string path, PdfDocument document, FileStream sourceFile, IRandomAccessStream sourceStream)
     {
         this.document = document;
+        this.sourceFile = sourceFile;
+        this.sourceStream = sourceStream;
         Publication = DocumentEngine.Describe(path, "pdf");
         if (document.PageCount == 0 || document.PageCount > 100_000) throw new InvalidDataException("PDF 页数无效或超过限制。");
         for (uint i = 0; i < document.PageCount; i++)
@@ -31,24 +32,51 @@ internal sealed class PdfBook : IOpenBook
     }
     public static async Task<IOpenBook> OpenAsync(string path, string? password, CancellationToken token)
     {
-        var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
+        FileStream? sourceFile = null;
+        IRandomAccessStream? sourceStream = null;
         try
         {
-            var doc = await (password == null ? PdfDocument.LoadFromFileAsync(file) : PdfDocument.LoadFromFileAsync(file, password)).AsTask(token);
-            return new PdfBook(path, doc);
+            token.ThrowIfCancellationRequested();
+            // PdfDocument has no Close/Dispose API. Keep ownership of the input
+            // stream so closing a book releases the original file immediately,
+            // independently of when the WinRT document wrapper is collected.
+            sourceFile = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+                4096, FileOptions.Asynchronous | FileOptions.RandomAccess);
+            sourceStream = sourceFile.AsRandomAccessStream();
+            PdfDocument doc;
+            try
+            {
+                doc = await (password == null ? PdfDocument.LoadFromStreamAsync(sourceStream) :
+                    PdfDocument.LoadFromStreamAsync(sourceStream, password)).AsTask(token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when ((uint)ex.HResult == 0x8007052b || (uint)ex.HResult == 0x80070005)
+            { throw new PasswordRequiredException(); }
+            catch (Exception ex) when (ex is not OperationCanceledException && string.IsNullOrWhiteSpace(ex.Message))
+            { throw new InvalidDataException($"PDF 无法打开（错误 0x{ex.HResult:X8}）。请检查文件是否完整。", ex); }
+            token.ThrowIfCancellationRequested();
+            var book = new PdfBook(path, doc, sourceFile, sourceStream);
+            sourceFile = null;
+            sourceStream = null;
+            return book;
         }
-        catch (Exception ex) when ((uint)ex.HResult == 0x8007052b || (uint)ex.HResult == 0x80070005)
-        { throw new PasswordRequiredException(); }
+        finally
+        {
+            // Covers cancellation, password errors, malformed documents, and
+            // constructor validation failures before ownership is transferred.
+            try { sourceStream?.Dispose(); }
+            finally { sourceFile?.Dispose(); }
+        }
     }
     public async Task<BitmapSource> RenderAsync(int index, int maxEdge = 2400, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (index < 0 || index >= Publication.Units.Count) throw new ArgumentOutOfRangeException(nameof(index));
-        await renderGate.WaitAsync(cancellationToken);
+        await renderGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            using var page = document.GetPage((uint)index);
+            var current = document ?? throw new ObjectDisposedException(nameof(PdfBook));
+            using var page = current.GetPage((uint)index);
             using var stream = new InMemoryRandomAccessStream();
             double scale = Math.Clamp(maxEdge, 64, 8192) / Math.Max(page.Size.Width, page.Size.Height);
             var options = new PdfPageRenderOptions
@@ -57,7 +85,7 @@ internal sealed class PdfBook : IOpenBook
                 DestinationHeight = (uint)Math.Max(1, Math.Round(page.Size.Height * scale)),
                 BackgroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255)
             };
-            await page.RenderToStreamAsync(stream, options).AsTask(cancellationToken);
+            await page.RenderToStreamAsync(stream, options).AsTask(cancellationToken).ConfigureAwait(false);
             if (stream.Size > BookArchive.ResourceLimit) throw new InvalidDataException("PDF 页面渲染结果超过限制。");
             stream.Seek(0);
             using var input = stream.AsStreamForRead();
@@ -69,5 +97,24 @@ internal sealed class PdfBook : IOpenBook
         finally { renderGate.Release(); }
     }
     public byte[]? Resource(string path) => null;
-    public void Dispose() => disposed = true;
+    public void Dispose()
+    {
+        // Render continuations do not capture a UI context, so this drain cannot
+        // depend on the thread synchronously closing the book.
+        renderGate.Wait();
+        try
+        {
+            if (disposed) return;
+            disposed = true;
+            document = null;
+            try { sourceStream?.Dispose(); }
+            finally
+            {
+                sourceStream = null;
+                sourceFile?.Dispose();
+                sourceFile = null;
+            }
+        }
+        finally { renderGate.Release(); }
+    }
 }
