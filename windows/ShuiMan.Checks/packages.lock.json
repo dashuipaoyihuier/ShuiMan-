@@ -27,6 +27,16 @@
           "Magick.NET-Q8-x64": "[14.17.1, )"
         }
       }
+    },
+    "net10.0-windows10.0.19041/win-x64": {
+      "Magick.NET-Q8-x64": {
+        "type": "Transitive",
+        "resolved": "14.17.1",
+        "contentHash": "TA87KqVVl4hYxav93fECRfvyOZPRO7gQsmpcbrgfn7aU/Qzv33IxKaDUvH3iA1I4QWc96G4T9HsjNWWIwS1a5w==",
+        "dependencies": {
+          "Magick.NET.Core": "14.17.1"
+        }
+      }
     }
   }
 }

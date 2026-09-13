@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using ShuiMan.Core;
 
 namespace ShuiMan.Checks;
@@ -12,6 +13,29 @@ internal static class Program
 
     [STAThread]
     private static int Main(string[] args)
+    {
+        // Fixtures use WPF rendering, which creates a dispatcher and native render
+        // resources even without a window. Complete WPF shutdown before process exit.
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var exitCode = 1;
+        try { exitCode = RunChecks(args); }
+        catch (Exception ex) { Console.Error.WriteLine($"FAIL harness: {ex}"); }
+        finally
+        {
+            // The synchronous harness has no dispatcher frame or synchronization
+            // context. Shutdown therefore completes here, on the owning STA thread.
+            dispatcher.InvokeShutdown();
+        }
+        if (!dispatcher.HasShutdownFinished)
+        {
+            Console.Error.WriteLine("FAIL harness: WPF dispatcher did not complete shutdown.");
+            return 1;
+        }
+        Console.WriteLine("HOST: WPF dispatcher shutdown completed.");
+        return exitCode;
+    }
+
+    private static int RunChecks(string[] args)
     {
         if (args.Length == 2 && args[0] == "--fixtures")
         {
