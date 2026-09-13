@@ -73,11 +73,6 @@ internal static class Program
         }
         finally
         {
-            // PdfDocument has no IClosable contract. Drain WinRT finalizers while
-            // COM and native worker pools are still alive, before deleting fixtures.
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
             // This exact per-run directory is created above; never touches user books.
             try { Directory.Delete(root, true); }
             catch (IOException ex) { Console.Error.WriteLine($"Fixture cleanup: {ex.Message}"); }
@@ -212,6 +207,17 @@ internal static class Program
             True(first.PixelHeight > first.PixelWidth, "PDF first page portrait");
             True(second.PixelWidth > second.PixelHeight, "PDF second page landscape");
             True(Pixels(first).Distinct().Count() > 2, "PDF contains rendered artwork");
+            using var canceled = new CancellationTokenSource();
+            canceled.Cancel();
+            var canceledRenderRejected = false;
+            try { book.RenderAsync(0, 400, canceled.Token).GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) { canceledRenderRejected = true; }
+            True(canceledRenderRejected, "pre-canceled PDF rendering is rejected");
+            var unicodePath = Path.Combine(root, "中文目录 📚", "水漫 演示.pdf");
+            Directory.CreateDirectory(Path.GetDirectoryName(unicodePath)!);
+            File.Copy(path, unicodePath);
+            using var another = Open(unicodePath);
+            Equal(2, another.Publication.Units.Count, "PDF opens from a Unicode path");
             book.Dispose();
             using (var exclusive = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
                 True(exclusive.Length > 0, "PDF dispose releases source handle without garbage collection");
@@ -219,11 +225,34 @@ internal static class Program
             try { book.RenderAsync(0).GetAwaiter().GetResult(); }
             catch (ObjectDisposedException) { disposedRenderRejected = true; }
             True(disposedRenderRejected, "disposed PDF rejects rendering");
+            var remaining = another.RenderAsync(1, 400).GetAwaiter().GetResult();
+            True(remaining.PixelWidth > remaining.PixelHeight, "closing one PDF leaves another usable");
+            another.Dispose();
+            using (var reopened = Open(path))
+            {
+                var renderedAgain = reopened.RenderAsync(0, 400).GetAwaiter().GetResult();
+                True(Pixels(first).SequenceEqual(Pixels(renderedAgain)), "PDF reopens and renders after every document is closed");
+            }
+            using (var unicodeExclusive = new FileStream(unicodePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                True(unicodeExclusive.Length > 0, "second PDF releases its file without garbage collection");
             var invalid = Path.Combine(root, "invalid-pdf.pdf");
             File.WriteAllText(invalid, "Not a PDF document");
             ExpectOpenFailure(invalid);
             using var failedExclusive = new FileStream(invalid, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             True(failedExclusive.Length > 0, "failed PDF open releases owned source handle");
+            var protectedPath = Path.Combine(root, "password.pdf");
+            foreach (var password in new string?[] { null, "wrong-password" })
+            {
+                var passwordRejected = false;
+                try { using var rejected = DocumentEngine.OpenAsync(protectedPath, password).GetAwaiter().GetResult(); }
+                catch (PasswordRequiredException) { passwordRejected = true; }
+                True(passwordRejected, "encrypted PDF reports missing or incorrect password");
+                using var afterFailure = new FileStream(protectedPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                True(afterFailure.Length > 0, "password failure releases PDF file");
+            }
+            using var unlocked = DocumentEngine.OpenAsync(protectedPath, "reading-pass").GetAwaiter().GetResult();
+            Equal(2, unlocked.Publication.Units.Count, "correct password opens encrypted PDF");
+            True(Pixels(first).SequenceEqual(Pixels(unlocked.RenderAsync(0, 400).GetAwaiter().GetResult())), "password-protected artwork renders identically");
         });
         Check("complex EPUB preserves HTML CSS and image resources", () =>
         {

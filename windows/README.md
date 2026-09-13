@@ -37,7 +37,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -DesktopShortcut
 | ZIP、CBZ | 直接读取包内图片，无需解压；支持嵌套目录、UTF-8 / 常见 GB18030 中文文件名、自然数字排序（1、2、10），忽略隐藏元数据。 |
 | 图片、图片文件夹 | 支持 PNG、JPEG、GIF、BMP、TIFF、WebP 等图像格式；TIFF 每帧作为独立页面；动画图片按静态页面读取。 |
 | EPUB | 按 spine 顺序阅读，保留重复引用和缺失页面位置；图片页使用原生画布，复杂 HTML/CSS 页使用 WebView2；目录映射到阅读位置。 |
-| PDF | 使用 Windows PDF 引擎显示，支持密码提示；页面尺寸和顺序保持原文。 |
+| PDF | 使用随程序分发的 PDFium 显示，支持密码提示；页面尺寸和顺序保持原文，关闭书籍后释放源文件。 |
 | MOBI | 支持无 DRM 的 MOBI 6 图片漫画，以及混合格式中的 MOBI 6 正文；支持未压缩/PalmDOC，保留封面、正文图片顺序和重复引用。 |
 
 加密 ZIP、RAR/CBR、受 DRM 保护的电子书、MOBI HUFF/CDIC、纯 KF8/AZW3，以及 MOBI 文字/混合排版不支持；程序会提示转换为 EPUB 等可读格式。ZIP 不自动展开包内嵌套的 ZIP。危险路径、损坏结构或超过资源限制的文件会被拒绝。图片损坏会保留其页面位置，避免后续进度错位。

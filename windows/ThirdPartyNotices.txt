@@ -26,6 +26,22 @@ Copyright (c) 2013-2026 AngleSharp. MIT License.
 Source: https://github.com/AngleSharp/AngleSharp/tree/bbd0ad75e9cfc4d5fc0106803fff52c25cac0d9e
 See licenses/AngleSharp-1.8.1-LICENSE.txt.
 
+PDFiumCore 154.0.8035
+Distributed under the Apache License 2.0.
+Source: https://github.com/Dtronix/PDFiumCore
+Package: https://www.nuget.org/packages/PDFiumCore/154.0.8035
+See licenses/PDFiumCore-LICENSE.txt. The wrapper includes CppSharp runtime
+code under the MIT license; see licenses/CppSharp-LICENSE.txt.
+
+PDFium native binaries, Chromium branch 8035
+Package: bblanchon.PDFium.Win32 154.0.8035
+Source/build: https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8035
+PDFium source: https://pdfium.googlesource.com/pdfium/
+The unchanged x64 pdfium.dll is redistributed alongside the application.
+See licenses/PDFium-binaries-8035-LICENSE.txt and ALL licenses/PDFium-8035-*
+files for PDFium, its build distribution, and bundled native dependencies.
+These notices come from the matching upstream pdfium-win-x64.tgz archive.
+
 Microsoft .NET and Microsoft Edge WebView2 are Microsoft components.
 The self-contained .NET runtime's upstream license and third-party notice
 files are included under licenses/microsoft.netcore.app.runtime.win-x64-*

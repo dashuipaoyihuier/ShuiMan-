@@ -13,6 +13,21 @@
         "resolved": "1.8.1",
         "contentHash": "fTLPBxwYK5zmt+ernY3GL1kFBDA/2Cl72hpNnMHeNceZNJ/AT7Km9CXFaMHybuEFhXDy2Dv7Bjkez5G0Z4Io4g=="
       },
+      "bblanchon.PDFium.Linux": {
+        "type": "Transitive",
+        "resolved": "154.0.8035",
+        "contentHash": "eWTK37C4KjzbcqUtfsLD4nIdUgoh4BFhrRdm4GTH0uuKa/klCZbqCBwq3Zk2uZhl06uk1r0N/e3sog0t94aPcQ=="
+      },
+      "bblanchon.PDFium.macOS": {
+        "type": "Transitive",
+        "resolved": "154.0.8035",
+        "contentHash": "hKhPX5Hfn9tQUCUEgYEmO+0sZxXud/zwhCU37zXWqOcwyhWhs9Zsv7EiUKSRdJrgYrruzuJzVuFvT4W4w3xA9A=="
+      },
+      "bblanchon.PDFium.Win32": {
+        "type": "Transitive",
+        "resolved": "154.0.8035",
+        "contentHash": "eBidIMvH1+76ajznz5tdMx0A/odyPLKnQaggrL5tX1+al5/JEgwVtfHyzDGfIzuYXj5MLghyb+6KS3P/JATEPw=="
+      },
       "Magick.NET-Q8-x64": {
         "type": "Transitive",
         "resolved": "14.17.1",
@@ -26,11 +41,22 @@
         "resolved": "14.17.1",
         "contentHash": "4BBbU5l5DmdT9isSNGrIE/0VwAh29SoKMSDMiIvFBDqz6vQfG6EYBFJQOemdCH3xkMfesSzImOVPjnyMf/PIqA=="
       },
+      "PDFiumCore": {
+        "type": "Transitive",
+        "resolved": "154.0.8035",
+        "contentHash": "RM5FjCDJK+gdh/XV/ABC9dXuYgvhTi6lBg6O7dV7beT2XLEc8EuvPic27sm7reIiuVN7qdj0YJa2ovxPH0mFPw==",
+        "dependencies": {
+          "bblanchon.PDFium.Linux": "154.0.8035",
+          "bblanchon.PDFium.Win32": "154.0.8035",
+          "bblanchon.PDFium.macOS": "154.0.8035"
+        }
+      },
       "shuiman.core": {
         "type": "Project",
         "dependencies": {
           "AngleSharp": "[1.8.1, )",
-          "Magick.NET-Q8-x64": "[14.17.1, )"
+          "Magick.NET-Q8-x64": "[14.17.1, )",
+          "PDFiumCore": "[154.0.8035, )"
         }
       }
     },
@@ -40,6 +66,21 @@
         "requested": "[1.0.4191.47, )",
         "resolved": "1.0.4191.47",
         "contentHash": "Snb6mlTpuz6ZFjWMwIdg28Xp6kAUMy3zaLUyGbFSaw+/AJKlwoX8EiaWJ1eUMfKyJHksPkFjJHl1LIB7kX+0AQ=="
+      },
+      "bblanchon.PDFium.Linux": {
+        "type": "Transitive",
+        "resolved": "154.0.8035",
+        "contentHash": "eWTK37C4KjzbcqUtfsLD4nIdUgoh4BFhrRdm4GTH0uuKa/klCZbqCBwq3Zk2uZhl06uk1r0N/e3sog0t94aPcQ=="
+      },
+      "bblanchon.PDFium.macOS": {
+        "type": "Transitive",
+        "resolved": "154.0.8035",
+        "contentHash": "hKhPX5Hfn9tQUCUEgYEmO+0sZxXud/zwhCU37zXWqOcwyhWhs9Zsv7EiUKSRdJrgYrruzuJzVuFvT4W4w3xA9A=="
+      },
+      "bblanchon.PDFium.Win32": {
+        "type": "Transitive",
+        "resolved": "154.0.8035",
+        "contentHash": "eBidIMvH1+76ajznz5tdMx0A/odyPLKnQaggrL5tX1+al5/JEgwVtfHyzDGfIzuYXj5MLghyb+6KS3P/JATEPw=="
       },
       "Magick.NET-Q8-x64": {
         "type": "Transitive",

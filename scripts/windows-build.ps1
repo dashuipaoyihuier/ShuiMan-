@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) { throw "Windows publish exited with code $LASTEXITCODE
 if (-not (Test-Path -LiteralPath (Join-Path $output 'ShuiMan.exe'))) {
     throw 'Publish did not produce ShuiMan.exe.'
 }
-foreach ($requiredRuntime in @('coreclr.dll', 'hostfxr.dll', 'Magick.Native-Q8-x64.dll', 'WebView2Loader.dll')) {
+foreach ($requiredRuntime in @('coreclr.dll', 'hostfxr.dll', 'Magick.Native-Q8-x64.dll', 'pdfium.dll', 'WebView2Loader.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $output $requiredRuntime))) {
         throw "Publish is missing the required runtime file $requiredRuntime."
     }

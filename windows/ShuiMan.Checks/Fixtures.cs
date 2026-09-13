@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
@@ -46,6 +47,7 @@ internal static class Fixtures
         Archive(Path.Combine(directory, "unsafe.zip"), new() { ["../outside.png"] = first, ["1.png"] = first });
         GenerateEpub(Path.Combine(directory, "spine.epub"), first, second);
         GeneratePdf(Path.Combine(directory, "sample.pdf"));
+        GeneratePdf(Path.Combine(directory, "password.pdf"), "reading-pass");
         GenerateMobi(directory, first, second, tenth);
         File.WriteAllBytes(Path.Combine(directory, "single.jpg"), Reencode(first, new JpegBitmapEncoder { QualityLevel = 90 }));
         Archive(Path.Combine(directory, "mixed-images.zip"), new()
@@ -90,30 +92,74 @@ internal static class Fixtures
         });
     }
 
-    private static void GeneratePdf(string path)
+    private static void GeneratePdf(string path, string? password = null)
     {
         const string drawing = "0.1 0.3 0.6 rg 0 0 300 400 re f 1 0.8 0.2 rg 60 80 180 240 re f";
-        string[] objects =
+        var content = Encoding.ASCII.GetBytes(drawing);
+        string? encryption = null;
+        var trailerEntries = "";
+        if (password != null)
+        {
+            // Test fixture only: PDF 1.4 Standard security handler revision 2,
+            // Adobe PDF Reference algorithms 3.1-3.4. Independent of the renderer.
+            // https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/pdfreference1.4.pdf
+            var padding = Convert.FromHexString("28BF4E5E4E758A4164004E56FFFA01082E2E00B6D0683E802F0CA9FE6453697A");
+            byte[] Pad(string value) => Encoding.ASCII.GetBytes(value).Concat(padding).Take(32).ToArray();
+            var owner = Rc4(MD5.HashData(Pad("fixture-owner"))[..5], Pad(password));
+            var id = MD5.HashData("ShuiMan generated encrypted PDF"u8);
+            var key = MD5.HashData([.. Pad(password), .. owner, 252, 255, 255, 255, .. id])[..5];
+            var user = Rc4(key, padding);
+            var objectKey = MD5.HashData([.. key, 4, 0, 0, 0, 0])[..10];
+            content = Rc4(objectKey, content);
+            encryption = $"<< /Filter /Standard /V 1 /R 2 /Length 40 /O <{Convert.ToHexString(owner)}> /U <{Convert.ToHexString(user)}> /P -4 >>";
+            trailerEntries = $" /Encrypt 6 0 R /ID [<{Convert.ToHexString(id)}> <{Convert.ToHexString(id)}>]";
+        }
+        List<byte[]> objects =
         [
-            "<< /Type /Catalog /Pages 2 0 R >>",
-            "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Contents 4 0 R /Resources << >> >>",
-            $"<< /Length {drawing.Length} >>\nstream\n{drawing}\nendstream",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 400] /Contents 4 0 R /Resources << >> >>"
+            Utf8("<< /Type /Catalog /Pages 2 0 R >>"),
+            Utf8("<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>"),
+            Utf8("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Contents 4 0 R /Resources << >> >>"),
+            [.. Utf8($"<< /Length {content.Length} >>\nstream\n"), .. content, .. Utf8("\nendstream")],
+            Utf8("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 400] /Contents 4 0 R /Resources << >> >>")
         ];
+        if (encryption != null) objects.Add(Utf8(encryption));
         using var stream = File.Create(path);
         void Write(string value) => stream.Write(Encoding.ASCII.GetBytes(value));
         Write("%PDF-1.4\n");
         var offsets = new List<long> { 0 };
-        for (var i = 0; i < objects.Length; i++)
+        for (var i = 0; i < objects.Count; i++)
         {
             offsets.Add(stream.Position);
-            Write($"{i + 1} 0 obj\n{objects[i]}\nendobj\n");
+            Write($"{i + 1} 0 obj\n");
+            stream.Write(objects[i]);
+            Write("\nendobj\n");
         }
         var xref = stream.Position;
-        Write($"xref\n0 {objects.Length + 1}\n0000000000 65535 f \n");
+        Write($"xref\n0 {objects.Count + 1}\n0000000000 65535 f \n");
         foreach (var offset in offsets.Skip(1)) Write($"{offset:0000000000} 00000 n \n");
-        Write($"trailer\n<< /Size {objects.Length + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
+        Write($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R{trailerEntries} >>\nstartxref\n{xref}\n%%EOF\n");
+    }
+
+    private static byte[] Rc4(byte[] key, byte[] input)
+    {
+        var state = Enumerable.Range(0, 256).ToArray();
+        var j = 0;
+        for (var i = 0; i < 256; i++)
+        {
+            j = (j + state[i] + key[i % key.Length]) & 255;
+            (state[i], state[j]) = (state[j], state[i]);
+        }
+        var x = 0;
+        j = 0;
+        var output = new byte[input.Length];
+        for (var i = 0; i < input.Length; i++)
+        {
+            x = (x + 1) & 255;
+            j = (j + state[x]) & 255;
+            (state[x], state[j]) = (state[j], state[x]);
+            output[i] = (byte)(input[i] ^ state[(state[x] + state[j]) & 255]);
+        }
+        return output;
     }
 
     private static byte[] Utf8(string text) => Encoding.UTF8.GetBytes(text);
