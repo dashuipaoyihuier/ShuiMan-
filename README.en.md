@@ -8,11 +8,15 @@ The project supports local image folders, PDF, EPUB, and additional local format
 
 ## Windows 0.6.0
 
+[Download Windows x64](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.6.0/ShuiMan-Windows-x64.zip) · [Release notes](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.6.0) · [SHA-256](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.6.0/ShuiMan-Windows-x64.zip.sha256)
+
 Requires Windows 10 version 2004+ or Windows 11, x64. Extract the complete Windows distribution and run `ShuiMan.exe`, or run `Install.cmd` to install for the current user. The portable distribution includes .NET; complex EPUB pages use Microsoft Edge WebView2, checked by the optional installer.
 
 With .NET 10 SDK installed, run `./scripts/windows-build.ps1` from PowerShell. The script runs regression checks and creates `build/windows/ShuiMan/ShuiMan.exe` and `build/windows/ShuiMan-Windows-x64.zip`. The client includes a local library, persistent reading progress, bookmarks, single/double pages, direction, zoom, fullscreen, and manual spread corrections.
 
 See [Windows documentation](windows/README.md) and [actual validation results](docs/windows-validation.md) for supported formats, build details, and known limitations. The macOS and Android build entry points remain independent.
+
+This release adds the native Windows client, ZIP/CBZ reading without extraction, nested/Chinese archive paths, multi-frame TIFF, EPUB spine-preserving navigation, offline HTML layout, and unencrypted MOBI 6 image comics. Manual spread placement survives changes in reading direction; atomic local storage and backups preserve records across separate application instances. Validation: **38 core checks and 12 real UI integration checks passed** on the local Windows machine. Windows OCR orientation is conservative; CJK content may require publisher hints or manual correction. The binary in this release is for Windows; other platform packages remain available in the [previous release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/Comic).
 
 ## Highlight: intelligent spread reading
 

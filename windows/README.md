@@ -4,6 +4,8 @@ Windows 原生 WPF 客户端，和仓库中的 macOS、Android 客户端共享�
 
 ## 运行
 
+从 [Windows 0.6.0 Release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.6.0) 下载 `ShuiMan-Windows-x64.zip`。同一页面提供完整更新说明和 SHA-256 校验文件；GitHub 自动附加的 “Source code” 是开发源码，不是可运行的 Windows 安装包。
+
 需要 Windows 10 2004（内部版本 19041）或更新版本，x64 架构。发行包自带 .NET 运行时：完整解压 `ShuiMan-Windows-x64.zip`，进入 `ShuiMan` 目录并双击 `ShuiMan.exe`。请保留整个程序目录。
 
 复杂 EPUB 的 HTML/CSS 页面由 Microsoft Edge WebView2 显示，需要 [WebView2 Evergreen 运行时](https://developer.microsoft.com/microsoft-edge/webview2/)。多数 Windows 10/11 电脑已包含该组件；普通图片漫画和 PDF 不依赖它。运行时不包含在便携 ZIP 中。
