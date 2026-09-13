@@ -51,6 +51,11 @@ final class ReadingWindowView: NSView {
             guard let self,let window=self.window,event.window===window,window.attachedSheet==nil,
                   self.session?.isReading==true,!(window.firstResponder is NSTextView),
                   event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty else {return event}
+            if event.keyCode==126,self.session?.showWeb==false {
+                // One quarter turn per press; holding the key must not spin the page.
+                if !event.isARepeat { self.session?.rotate(90) }
+                return nil
+            }
             if event.keyCode==48 {
                 self.session?.toggleReadingControls();return nil
             }

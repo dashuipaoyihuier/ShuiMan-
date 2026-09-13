@@ -6,13 +6,13 @@ ShuiMan is a privacy-first offline reader for locally owned comics and books. It
 
 The project supports local image folders, PDF, EPUB, and additional local formats as they mature. It does not provide, distribute, index, or fetch comic content. Reading progress, bookmarks, and display preferences stay on the device; source files are never modified.
 
-## Windows 0.7.1
+## Windows 0.7.2
 
-[Windows 0.7.1 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/ShuiMan-Setup-0.7.1-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/Shuiman-0.6.0-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.1)
+[Windows 0.7.2 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.1 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/Shuiman-0.6.1-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/macos-v0.6.1)
 
 Requires Windows 10 version 2004+ or Windows 11, x64. The Chinese installer includes .NET, installs for the current user, supports upgrades and standard Windows uninstallation, and preserves the library and source books. Desktop shortcuts and Open With integration are optional. EPUB comic images use the native reader canvas without a browser runtime.
 
-Version 0.7.1 fixes analysis timing when opening a book or jumping to another page. The reader waits for the current page and the neighboring analysis needed for its layout before drawing the page for the first time. A jump promotes the new position immediately instead of waiting for the scan from the old position to finish. Valid cached results are reused. See the [validation record](docs/windows-validation.md) for this release's verification status.
+Version 0.7.2 adds the Up-arrow clockwise rotation shortcut. Version 0.7.1 fixes analysis timing when opening a book or jumping to another page. The reader waits for the current page and the neighboring analysis needed for its layout before drawing the page for the first time. A jump promotes the new position immediately instead of waiting for the scan from the old position to finish. Valid cached results are reused. See the [validation record](docs/windows-validation.md) for this release's verification status.
 
 The Windows library and shell use a quiet, light visual style: a series cover homepage opening naturally ordered volumes, grid and list views, resume reading, favorites, read-state filters, series browsing, editable titles/series/tags, and search. The window header, taskbar, application, and installer reuse the original macOS book-and-wave icon. Source folders are remembered and scanned every minute or on demand; removing a source stops scanning while preserving books and progress. Cover decoding runs in the background with a bounded cache. Reader saves preserve library metadata changed in another window.
 
@@ -31,6 +31,8 @@ With the .NET 10 SDK installed, run `./scripts/windows-build.ps1`. To produce th
 ShuiMan treats two-page spreads as a core reading experience. Confirmed landscape spreads are displayed on their own and fitted without cropping. For a spread split across two adjacent images, the reader conservatively analyzes the seam, physical left/right placement, and source order before offering automatic composition. It can also suggest a rotation for sideways content using publication-style and text-orientation hints.
 
 Every automatic decision is reversible. Readers can rotate a page, pair or unpair pages, swap physical sides, or restore automatic analysis. Manual corrections always take precedence. Pages with little text, ambiguous text, or an indistinct seam may still need confirmation.
+
+On macOS, press **↑** while reading a comic to rotate the current page 90° clockwise. Four presses restore its orientation; corrections are saved. R / Shift+R remain available. Text fields and original EPUB layout keep their normal Up-arrow behavior.
 
 ## Application screenshots
 

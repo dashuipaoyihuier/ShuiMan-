@@ -6,13 +6,13 @@
 
 它面向那些在意阅读顺序、双页跨页和本地文件掌控感的读者：EPUB 以 spine 顺序为准，阅读方向和双页位置可分别调整；对横置跨页及相邻双图跨页提供保守的自动分析，并始终保留逐页手动纠正。阅读进度、书签和显示偏好只保存在本机，原始文件不会被修改。
 
-## 下载 
+## 下载
 
-[Windows 0.7.1 安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/ShuiMan-Setup-0.7.1-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/Shuiman-0.6.0-macOS-arm64.zip) · [全部安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.1)
+[Windows 0.7.2 安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.1 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/Shuiman-0.6.1-macOS-arm64.zip) · [全部安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/macos-v0.6.1)
 
-需要 Windows 10 2004+ 或 Windows 11，x64 架构。双击 **ShuiMan-Setup-0.7.1-x64.exe**，按照中文向导安装；之后从开始菜单打开水漫，在 Windows“已安装的应用”中卸载。安装到当前用户，内含 .NET；升级保留书库和进度，卸载保留原漫画与阅读记录。EPUB 漫画图片使用原生阅读画布，不需要浏览器运行时。
+需要 Windows 10 2004+ 或 Windows 11，x64 架构。双击 **ShuiMan-Setup-0.7.2-x64.exe**，按照中文向导安装；之后从开始菜单打开水漫，在 Windows“已安装的应用”中卸载。安装到当前用户，内含 .NET；升级保留书库和进度，卸载保留原漫画与阅读记录。EPUB 漫画图片使用原生阅读画布，不需要浏览器运行时。
 
-0.7.1 修复打开书籍和跳页时的识别时序：先等待当前页及影响其布局的邻页分析，再首次绘制正文；跳到新位置会优先处理该处，不必等旧位置扫完整本。已有有效缓存时直接复用。本轮验证进度见[验证记录](docs/windows-validation.md)。
+0.7.2 新增 ↑ 顺时针旋转快捷键。0.7.1 修复打开书籍和跳页时的识别时序：先等待当前页及影响其布局的邻页分析，再首次绘制正文；跳到新位置会优先处理该处，不必等旧位置扫完整本。已有有效缓存时直接复用。本轮验证进度见[验证记录](docs/windows-validation.md)。
 
 Windows 版功能：
 
@@ -36,9 +36,9 @@ Windows 版功能：
 
 macOS 端基于 Swift、SwiftUI 与 AppKit，Android 端基于 Kotlin 与 Jetpack Compose，Windows 端基于 C#、.NET 10 与 WPF。项目在开发者主导下，借助 **OpenAI Codex** 协作实现、测试和迭代。
 
-macOS 版本 **0.6.0** 面向 Apple Silicon，部署目标 macOS 14+。
+macOS 版本 **0.6.1** 面向 Apple Silicon，部署目标 macOS 14+。阅读漫画时按 **↑** 顺时针旋转当前页 90°，连续按四次恢复原方向；修正会保存。保留 R / Shift+R 旋转快捷键，输入框和 EPUB 原版式阅读不拦截 ↑。
 
-Windows **0.7.1** 提供标准安装包；从源码构建还可生成免安装 ZIP。C# / WPF 阅读核心继续使用，书库与界面已重做。完整功能、格式限制、构建步骤见 [Windows 说明](windows/README.md)。
+Windows **0.7.2** 提供标准安装包；从源码构建还可生成免安装 ZIP。C# / WPF 阅读核心继续使用，书库与界面已重做。完整功能、格式限制、构建步骤见 [Windows 说明](windows/README.md)。
 
 在 Windows 上从源码构建：
 
@@ -47,7 +47,7 @@ Windows **0.7.1** 提供标准安装包；从源码构建还可生成免安装 Z
 .\scripts\windows-installer.ps1
 ```
 
-安装包构建需 Inno Setup 6.7+，可先运行 `scripts/windows-setup-compiler.ps1` 安装编译器。输出：`build/windows/ShuiMan/ShuiMan.exe`、便携 ZIP 和 `ShuiMan-Setup-0.7.1-x64.exe`。支持 ZIP/CBZ 中文文件名、嵌套目录、自然数字排序，以及书库、进度、书签、缩放、双页和手动跨页修正。
+安装包构建需 Inno Setup 6.7+，可先运行 `scripts/windows-setup-compiler.ps1` 安装编译器。输出：`build/windows/ShuiMan/ShuiMan.exe`、便携 ZIP 和 `ShuiMan-Setup-0.7.2-x64.exe`。支持 ZIP/CBZ 中文文件名、嵌套目录、自然数字排序，以及书库、进度、书签、缩放、双页和手动跨页修正。
 
 开发新手可参考 [Windows 上提交代码](docs/git-windows.md)，了解检查改动、提交、推送和创建功能分支。
 
