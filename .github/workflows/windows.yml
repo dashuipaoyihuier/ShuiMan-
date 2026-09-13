@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # Use an explicit image so native PDF/WPF behavior does not change with latest.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -24,6 +25,13 @@ jobs:
       - name: WebView2 integration checks when runtime is available
         shell: pwsh
         run: ./scripts/windows-ui-test.ps1
+      - name: Native crash diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-20) } -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProviderName -in @('Application Error', '.NET Runtime', 'Windows Error Reporting') } |
+            Select-Object -First 15 TimeCreated, ProviderName, Id, Message | Format-List
       - name: Upload portable application
         uses: actions/upload-artifact@v4
         with:
