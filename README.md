@@ -6,7 +6,7 @@
 
 它面向那些在意阅读顺序、双页跨页和本地文件掌控感的读者：EPUB 以 spine 顺序为准，阅读方向和双页位置可分别调整；对横置跨页及相邻双图跨页提供保守的自动分析，并始终保留逐页手动纠正。阅读进度、书签和显示偏好只保存在本机，原始文件不会被修改。
 
-## Windows 版下载 · 0.7.1
+## 下载 
 
 [Windows 0.7.1 安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/ShuiMan-Setup-0.7.1-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.1/Shuiman-0.6.0-macOS-arm64.zip) · [全部安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.1)
 
