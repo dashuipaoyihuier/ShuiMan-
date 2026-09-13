@@ -65,6 +65,7 @@ internal static partial class Program
             LayoutChecks();
             PairChecks();
             PairPolicyChecks();
+            SeamAlignmentChecks(root);
             PairSamplingChecks();
             OrientationChecks();
             BookAnalysisChecks(root);

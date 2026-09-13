@@ -4,6 +4,8 @@ param(
     [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'
+$installVersion = '0.7.1'
+$upgradeVersion = '0.7.2' # Isolated installer label only; both packages use the current application payload.
 $repository = Split-Path -Parent $PSScriptRoot
 $testRoot = [IO.Path]::GetFullPath((Join-Path $repository 'build\windows\installer-native-smoke'))
 $installed = [IO.Path]::GetFullPath((Join-Path $testRoot 'installed'))
@@ -29,10 +31,10 @@ function Start-TestInstaller([string]$Executable, [string[]]$Arguments) {
 }
 $buildParameters = @{ TestMode = $true; CompilerPath = $CompilerPath }
 if (-not $SkipBuild) {
-    & (Join-Path $PSScriptRoot 'windows-installer.ps1') @buildParameters -Version '0.7.0'
-    & (Join-Path $PSScriptRoot 'windows-installer.ps1') @buildParameters -Version '0.7.1'
+    & (Join-Path $PSScriptRoot 'windows-installer.ps1') @buildParameters -Version $installVersion
+    & (Join-Path $PSScriptRoot 'windows-installer.ps1') @buildParameters -Version $upgradeVersion
 }
-foreach ($version in @('0.7.0', '0.7.1')) {
+foreach ($version in @($installVersion, $upgradeVersion)) {
     $artifact = Join-Path $testRoot "artifacts\ShuiMan-Installer-Test-$version-x64.exe"
     Confirm-Check (Test-Path -LiteralPath $artifact) "Test installer $version exists"
     $actual = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -61,21 +63,21 @@ Set-Content -LiteralPath (Join-Path $installed '.shuiman-install') -Value 'ShuiM
 Set-Content -LiteralPath (Join-Path $installed 'uninstall.ps1') -Value '# obsolete helper fixture' -Encoding utf8
 Set-Content -LiteralPath (Join-Path $installed 'install.ps1') -Value '# obsolete helper fixture' -Encoding utf8
 try {
-    Start-TestInstaller (Join-Path $testRoot 'artifacts\ShuiMan-Installer-Test-0.7.0-x64.exe') @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS="desktopicon"', "/LOG=`"$testRoot\install.log`"")
+    Start-TestInstaller (Join-Path $testRoot "artifacts\ShuiMan-Installer-Test-$installVersion-x64.exe") @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS="desktopicon"', "/LOG=`"$testRoot\install.log`"")
     $browserPayload = @(Get-ChildItem -LiteralPath $installed -File -Filter '*WebView*')
     Confirm-Check ((Test-Path -LiteralPath (Join-Path $installed 'ShuiMan.exe')) -and $browserPayload.Count -eq 0) 'Offline native core installation without browser payload'
     Confirm-Check (Test-Path -LiteralPath (Join-Path $installed 'coreclr.dll')) 'Self-contained .NET installed'
     Confirm-Check (Test-Path -LiteralPath (Join-Path $installed 'pdfium.dll')) 'Offline PDF runtime installed'
     Confirm-Check (Test-Path -LiteralPath (Join-Path $installed 'licenses\LICENSE-Inno-Setup.txt')) 'Installer license installed'
     Confirm-Check (-not (Test-Path -LiteralPath (Join-Path $installed 'uninstall.ps1'))) 'Legacy uninstall helper removed'
-    Confirm-Check ((Get-ItemProperty -LiteralPath $uninstallKey).DisplayVersion -eq '0.7.0') 'Windows installed-app registration'
+    Confirm-Check ((Get-ItemProperty -LiteralPath $uninstallKey).DisplayVersion -eq $installVersion) 'Windows installed-app registration'
     $shell = New-Object -ComObject WScript.Shell
     Confirm-Check ($shell.CreateShortcut($startShortcut).TargetPath -eq (Join-Path $installed 'ShuiMan.exe')) 'Start menu shortcut points to isolated app'
     Confirm-Check ($shell.CreateShortcut($desktopShortcut).TargetPath -eq (Join-Path $installed 'ShuiMan.exe')) 'Optional desktop shortcut'
     Confirm-Check (-not (Test-Path -LiteralPath $progIdKey)) 'File associations remain opt-in'
-    Start-TestInstaller (Join-Path $testRoot 'artifacts\ShuiMan-Installer-Test-0.7.1-x64.exe') @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS="desktopicon,fileassociations"', "/LOG=`"$testRoot\upgrade.log`"")
-    Confirm-Check ((Get-ItemProperty -LiteralPath $uninstallKey).DisplayVersion -eq '0.7.1') 'Upgrade updates the existing installed-app entry'
-    Confirm-Check ((Get-Content -LiteralPath (Join-Path $installed 'install-version.txt') -Raw).Trim() -eq '0.7.1') 'Upgrade replaces installation metadata'
+    Start-TestInstaller (Join-Path $testRoot "artifacts\ShuiMan-Installer-Test-$upgradeVersion-x64.exe") @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS="desktopicon,fileassociations"', "/LOG=`"$testRoot\upgrade.log`"")
+    Confirm-Check ((Get-ItemProperty -LiteralPath $uninstallKey).DisplayVersion -eq $upgradeVersion) 'Upgrade updates the existing installed-app entry'
+    Confirm-Check ((Get-Content -LiteralPath (Join-Path $installed 'install-version.txt') -Raw).Trim() -eq $upgradeVersion) 'Upgrade replaces installation metadata'
     Confirm-Check (Test-Path -LiteralPath $progIdKey) 'Opt-in Open With registration'
     Confirm-Check ((Get-Item -LiteralPath $associationKey).GetValueNames() -contains 'ShuiMan.NativeInstallerTest.Book') 'Opt-in association points to test ProgID'
     Confirm-Check ((Get-FileHash -LiteralPath $bookMarker).Hash -eq $bookHash -and (Get-FileHash -LiteralPath $libraryMarker).Hash -eq $libraryHash) 'Upgrade preserves original books and library'

@@ -30,6 +30,10 @@ public partial class MainWindow : Window
     private readonly AnalysisCache _analysisCache;
     private CancellationTokenSource _analysisCancellation = new();
     private Task _analysisTask = Task.CompletedTask;
+    private BookAnalysisPriority _analysisPriority = new();
+    private bool _analysisFinished;
+    private TaskCompletionSource _analysisChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly Dictionary<int, string> _analysisFailures = [];
     private int _foregroundReaders;
     private string? _displaySignature;
     private bool _analysisRefreshQueued;
@@ -126,13 +130,14 @@ public partial class MainWindow : Window
                 var located = publication.Units.FindIndex(p => p.Id == _saved.LocatorKey);
                 _index = located >= 0 ? located : Math.Clamp(_saved.Position - 1, 0, publication.Units.Count - 1);
                 _lastProgressEnd = _saved.Position;
-                _decisions.Clear(); _pairs.Clear(); _displayImages.Clear(); _displayGroup = null; _displaySignature = null; _zoom = 1;
+                _decisions.Clear(); _pairs.Clear(); _analysisFailures.Clear(); _displayImages.Clear(); _displayGroup = null; _displaySignature = null; _zoom = 1;
                 var cachedAnalysis = await _analysisCache.LoadAsync(publication, token);
                 token.ThrowIfCancellationRequested();
                 if (cachedAnalysis != null)
                 {
                     foreach (var item in cachedAnalysis.Decisions) _decisions[item.Key] = item.Value;
                     foreach (var item in cachedAnalysis.Pairs) _pairs[item.Key] = item.Value;
+                    foreach (var item in cachedAnalysis.FailedPages) _analysisFailures[item.Key] = item.Value;
                 }
                 _pages = new(publication.Units.Select((u, i) => new PageRow { Index = i, Title = u.Title }));
                 _binding = true; PageList.ItemsSource = _pages; TocList.ItemsSource = publication.Navigation;
@@ -157,6 +162,7 @@ public partial class MainWindow : Window
         FitBox.SelectedIndex = p.Fit == "width" ? 1 : p.Fit == "actual" ? 2 : 0;
         SmartMenu.IsChecked = p.SmartSpreads; PairsMenu.IsChecked = p.AutomaticPairs; AggressiveMenu.IsChecked = p.AggressivePairs; CoverMenu.IsChecked = p.CoverAlone;
         OrientationMenu.IsChecked = p.AutomaticOrientation; DarkMenu.IsChecked = p.DarkBackground;
+        SeamAlignmentMenu.IsChecked = p.AutomaticSeamAlignment;
         ReadingArea.Background = new SolidColorBrush(p.DarkBackground ? Color.FromRgb(32, 36, 43) : Color.FromRgb(236, 238, 243));
         SmartStatusButton.Content = p.SmartSpreads ? "智能跨页：开" : "智能跨页：关";
         OrientationStatusButton.Content = p.AutomaticOrientation ? "智能转向：开" : "智能转向：关";
@@ -179,23 +185,93 @@ public partial class MainWindow : Window
         if (_book != null && _saved != null) _groups = LayoutEngine.Groups(_book.Publication, _saved, _decisions, ReadyPairs());
     }
     private Dictionary<int, PairDecision> ReadyPairs() => _pairs.ToDictionary(item => item.Key, item =>
-        (item.Key == 0 || _pairs.ContainsKey(item.Key - 1)) &&
-        (item.Key >= _book!.Publication.Units.Count - 2 || _pairs.ContainsKey(item.Key + 1))
+        PairAnalysisReady(item.Key - 1) && PairAnalysisReady(item.Key + 1)
             ? item.Value : item.Value with { Automatic = false, Suggested = false });
+    private bool PairAnalysisReady(int seam) => seam < 0 || seam >= _book!.Publication.Units.Count - 1 ||
+        _pairs.ContainsKey(seam) || _analysisFailures.ContainsKey(seam) || _analysisFailures.ContainsKey(seam + 1);
     private Task ShowPageAsync(int index) => ShowPageCoreAsync(index, preserveDisplayedPage: false);
+    private void SignalAnalysisChanged()
+    {
+        var previous = _analysisChanged;
+        _analysisChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        previous.TrySetResult();
+    }
+    private bool CurrentAnalysisReady(int index)
+    {
+        if (_book == null || _saved == null) return true;
+        var units = _book.Publication.Units;
+        var preferences = _saved.Preferences;
+        bool OrientationReady(int page, bool forPair = false)
+        {
+            if (page < 0 || page >= units.Count) return true;
+            var unit = units[page];
+            return (!forPair && !preferences.AutomaticOrientation) || unit.RotationHint != null || unit.IsCover ||
+                unit.Error != null || _saved.Overrides.GetValueOrDefault(unit.Id)?.Rotation != null ||
+                _decisions.ContainsKey(unit.Id) || _analysisFailures.ContainsKey(page);
+        }
+        if (!OrientationReady(index)) return false;
+        var current = units[index];
+        var correction = _saved.Overrides.GetValueOrDefault(current.Id);
+        if (index > 0 && _saved.Overrides.GetValueOrDefault(units[index - 1].Id)?.JoinNext == true)
+            return OrientationReady(index - 1);
+        bool automaticPair = preferences.SmartSpreads && preferences.AutomaticPairs &&
+            !current.IsCover && current.Error == null && !current.Complex &&
+            correction?.Rotation == null && correction?.JoinNext == null && correction?.Standalone != true &&
+            LayoutEngine.Rotation(current, _saved, _decisions) == 0 &&
+            !(current.Height > 0 && current.Width / current.Height >= 1.2) &&
+            _decisions.GetValueOrDefault(current.Id)?.Standalone != true;
+        if (!automaticPair)
+        {
+            if (correction?.JoinNext == true) return OrientationReady(index + 1);
+            if (preferences.Layout is not ("double" or "auto")) return true;
+            if (!preferences.SmartSpreads || !preferences.AutomaticPairs)
+                return OrientationReady(index - 1) && OrientationReady(index + 1);
+            bool alone = current.Complex || current.Error != null || (correction?.Standalone ??
+                (preferences.CoverAlone && current.IsCover || LayoutEngine.Rotation(current, _saved, _decisions) != 0 ||
+                current.Height > 0 && current.Width / current.Height >= 1.2 ||
+                _decisions.GetValueOrDefault(current.Id) is { Standalone: true } decision &&
+                (decision.Rotation == 0 || preferences.AutomaticOrientation)));
+            if (alone) return true;
+            // An ordinary double-page group can also be displaced by a smart pair
+            // starting on its next page, even when this page was manually rotated.
+        }
+        // Both possible partners and their competing seams must be decided. This is a
+        // bounded neighborhood, never a wait for the whole-book scan to finish.
+        for (int page = Math.Max(0, index - 2); page <= Math.Min(units.Count - 1, index + 3); page++)
+            if (!OrientationReady(page, forPair: true)) return false;
+        for (int seam = Math.Max(0, index - 2); seam <= Math.Min(units.Count - 2, index + 2); seam++)
+            if (!PairAnalysisReady(seam)) return false;
+        return true;
+    }
+    private async Task WaitForCurrentAnalysisAsync(IOpenBook targetBook, int index, CancellationToken token)
+    {
+        _analysisPriority.Promote(index);
+        while (targetBook == _book && !CurrentAnalysisReady(index) && !_analysisFinished)
+        {
+            token.ThrowIfCancellationRequested();
+            BusyText.Text = "正在判定当前页与跨页，随后立即显示…";
+            await _analysisChanged.Task.WaitAsync(token);
+        }
+        token.ThrowIfCancellationRequested();
+    }
     private async Task ShowPageCoreAsync(int index, bool preserveDisplayedPage)
     {
         if (_book == null || _saved == null || _closing) return;
         _index = Math.Clamp(index, 0, _book.Publication.Units.Count - 1);
         _renderCancellation.Cancel(); _renderCancellation.Dispose(); _renderCancellation = new();
         var token = _renderCancellation.Token; var targetBook = _book;
-        Interlocked.Increment(ref _foregroundReaders);
+        bool foregroundDrawing = false;
         if (!preserveDisplayedPage) { Surface.Visibility = Visibility.Hidden; _displayGroup = null; }
         CorrectionButton.IsEnabled = false; BookmarkButton.IsEnabled = false;
         StatusText.Text = $"正在准备第 {_index + 1} 页…";
         Busy("正在绘制页面…");
         try
         {
+            await WaitForCurrentAnalysisAsync(targetBook, _index, token);
+            token.ThrowIfCancellationRequested();
+            if (targetBook != _book) return;
+            Interlocked.Increment(ref _foregroundReaders);
+            foregroundDrawing = true;
             await _io.WaitAsync(token);
             try
             {
@@ -203,8 +279,8 @@ public partial class MainWindow : Window
                 if (targetBook != _book) return;
                 var publication = targetBook.Publication;
                 RebuildGroups();
-                // Navigation consumes existing whole-book results; it never starts page-by-page OCR.
-                // Explicit EPUB direction is available immediately through LayoutEngine.
+                // The shared worker resolves this neighborhood before its first visible frame.
+                // The remainder of the book continues independently after drawing.
                 token.ThrowIfCancellationRequested();
                 var group = _groups.First(value => value.Indices.Contains(_index));
                 BusyText.Text = "正在显示页面…";
@@ -245,7 +321,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            Interlocked.Decrement(ref _foregroundReaders);
+            if (foregroundDrawing) Interlocked.Decrement(ref _foregroundReaders);
             if (!token.IsCancellationRequested && targetBook == _book && !_closing)
             {
                 Surface.Visibility = Visibility.Visible; CorrectionButton.IsEnabled = true; BookmarkButton.IsEnabled = true;
@@ -370,6 +446,7 @@ public partial class MainWindow : Window
     {
         if (_saved == null) return;
         var p = _saved.Preferences; p.SmartSpreads = SmartMenu.IsChecked; p.AutomaticPairs = PairsMenu.IsChecked; p.AggressivePairs = AggressiveMenu.IsChecked; p.AutomaticOrientation = OrientationMenu.IsChecked; p.CoverAlone = CoverMenu.IsChecked; p.DarkBackground = DarkMenu.IsChecked;
+        p.AutomaticSeamAlignment = SeamAlignmentMenu.IsChecked;
         _binding = true; BindPreferences(); _binding = false; await Run(() => ShowPageAsync(_index));
     }
     private void SmartStatusClick(object sender, RoutedEventArgs e)
@@ -384,13 +461,15 @@ public partial class MainWindow : Window
         if (_book == null || _closing) return;
         var targetBook = _book;
         int generation = _openGeneration;
+        _renderCancellation.Cancel();
         _analysisCancellation.Cancel();
         try { await _analysisTask; } catch (OperationCanceledException) { }
         if (_closing || targetBook != _book || generation != _openGeneration) return;
         await _analysisCache.InvalidateAsync(targetBook.Publication);
         if (_closing || targetBook != _book || generation != _openGeneration) return;
-        _decisions.Clear(); _pairs.Clear(); StartBookAnalysis(targetBook);
+        _decisions.Clear(); _pairs.Clear(); _analysisFailures.Clear(); StartBookAnalysis(targetBook);
         StatusText.Text = "已重新开始整本后台分析，阅读可以继续";
+        await ShowPageAsync(_index);
     });
     private string GroupSignature(DisplayGroup group, IReadOnlyDictionary<int, int>? rotations = null) =>
         string.Join(",", group.Indices.Select(index => $"{index}:{rotations?.GetValueOrDefault(index) ?? LayoutEngine.Rotation(_book!.Publication.Units[index], _saved!, _decisions)}")) +
@@ -419,12 +498,22 @@ public partial class MainWindow : Window
         _analysisCancellation.Cancel(); _analysisCancellation.Dispose(); _analysisCancellation = new();
         var token = _analysisCancellation.Token;
         int analysisStartIndex = _index;
+        _analysisPriority = new();
+        _analysisPriority.Promote(analysisStartIndex);
+        var priority = _analysisPriority;
+        _analysisFinished = false;
         AnalysisStatusText.Text = $"整本分析 0 / {targetBook.Publication.Units.Count}";
         var progress = new Progress<BookAnalysisProgress>(update =>
         {
             if (_closing || token.IsCancellationRequested || targetBook != _book || _saved == null) return;
             foreach (var item in update.Decisions) _decisions[item.Key] = item.Value;
             foreach (var item in update.Pairs) _pairs[item.Key] = item.Value;
+            if (update.FailedPages != null)
+            {
+                _analysisFailures.Clear();
+                foreach (var item in update.FailedPages) _analysisFailures[item.Key] = item.Value;
+            }
+            SignalAnalysisChanged();
             AnalysisStatusText.Text = update.IsComplete ? $"整本分析完成 · {update.TotalPages} 页" : $"整本分析 {update.CompletedPages} / {update.TotalPages}";
             AnalysisStatusText.ToolTip = update.Warning ?? "从当前页往后逐页识别并立即应用，随后补齐前面的页面；结果缓存于本机。";
             if (update.Decisions.Count > 0 || update.Pairs.Count > 0) ApplyIncrementalAnalysis();
@@ -445,7 +534,7 @@ public partial class MainWindow : Window
                         return await targetBook.RenderAsync(page, edge, cancellation);
                     }
                     finally { _io.Release(); }
-                }, progress, token, startIndex: analysisStartIndex);
+                }, progress, token, startIndex: analysisStartIndex, priority: priority);
                 if (!completed.IsComplete)
                     await Dispatcher.InvokeAsync(() =>
                     {
@@ -463,6 +552,15 @@ public partial class MainWindow : Window
                 {
                     if (!_closing && targetBook == _book && !token.IsCancellationRequested)
                     { AnalysisStatusText.Text = "整本分析暂未完成"; AnalysisStatusText.ToolTip = ex.Message; }
+                });
+            }
+            finally
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (targetBook != _book || priority != _analysisPriority) return;
+                    _analysisFinished = true;
+                    SignalAnalysisChanged();
                 });
             }
         }, token);

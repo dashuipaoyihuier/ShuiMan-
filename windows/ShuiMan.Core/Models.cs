@@ -50,6 +50,7 @@ public sealed class ReaderPreferences
     public bool CoverAlone { get; set; } = true;
     public bool AutomaticPairs { get; set; } = true;
     public bool AggressivePairs { get; set; } = true;
+    public bool AutomaticSeamAlignment { get; set; }
     public bool AutomaticOrientation { get; set; } = true;
     public string Fit { get; set; } = "page";
     public bool DarkBackground { get; set; } = true;

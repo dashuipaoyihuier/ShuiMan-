@@ -125,6 +125,86 @@ internal static partial class Program
             True(reopened.IsComplete && reopened.CacheKey == resumed.CacheKey, "a completed cache remains reusable from any reading position");
         });
 
+        Check("whole-book dynamic navigation promotes a newly requested neighborhood while an older page is being decoded", () =>
+        {
+            var publication = AnalysisPublication("dynamic-navigation-book", 12);
+            var images = Enumerable.Range(0, 12).Select(AnalysisPageFixture).ToArray();
+            var priority = new BookAnalysisPriority();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var renders = new List<int>(); var pages = new List<int>(); var pairs = new List<int>();
+            using var stop = new CancellationTokenSource();
+            var analysis = new BookAnalysisService(new AnalysisCache(Path.Combine(root, "dynamic-navigation-cache")))
+                .AnalyzeAsync(publication, async (index, _, token) =>
+                {
+                    renders.Add(index);
+                    if (index == 6) { entered.TrySetResult(); await release.Task.WaitAsync(token); }
+                    return images[index];
+                }, new InlineProgress<BookAnalysisProgress>(value =>
+                {
+                    pages.AddRange(value.Decisions.Keys.Select(id => publication.Units.FindIndex(unit => unit.Id == id)));
+                    pairs.AddRange(value.Pairs.Keys);
+                }), stop.Token, startIndex: 6, priority: priority);
+            try
+            {
+                // Navigation is issued from this thread while the worker is inside a real render callback.
+                entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+                priority.Promote(2);
+                release.SetResult();
+                var result = analysis.GetAwaiter().GetResult();
+                Sequence([6, 5, 2], renders.Take(3), "the in-flight source pair finishes, then the newly requested page decodes next");
+                Sequence([6, 2, 1, 3, 0, 4, 5, 7, 8, 9, 10, 11], pages, "the new local neighborhood precedes the old tail and every page is published once");
+                Sequence(Enumerable.Range(0, 11), pairs.Order(), "dynamic queue changes neither omit nor repeat physical seams");
+                for (int index = 1; index < 11; index++)
+                    Equal(PairAnalyzer.Analyze(images[index], images[index + 1], index), result.Pairs[index], "dynamic jumps retain actual predecessor/successor image evidence");
+                True(result.IsComplete, "all remaining pages eventually complete after the promoted neighborhood");
+            }
+            finally
+            {
+                release.TrySetResult(); stop.Cancel();
+                try { analysis.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
+            }
+        });
+
+        Check("whole-book dynamic navigation checkpoints noncontiguous work and reports failed neighbor pages before resuming", () =>
+        {
+            var publication = AnalysisPublication("dynamic-checkpoint-book", 9);
+            var images = Enumerable.Range(0, 9).Select(AnalysisPageFixture).ToArray();
+            var cache = new AnalysisCache(Path.Combine(root, "dynamic-checkpoint-cache"));
+            var service = new BookAnalysisService(cache);
+            var priority = new BookAnalysisPriority();
+            var progress = new List<BookAnalysisProgress>();
+            using var stop = new CancellationTokenSource();
+            bool cancelled = false;
+            try
+            {
+                service.AnalyzeAsync(publication, (index, _, _) =>
+                {
+                    if (index == 7) priority.Promote(3);
+                    if (index == 2) throw new IOException("Generated failed predecessor");
+                    return Task.FromResult(images[index]);
+                }, new InlineProgress<BookAnalysisProgress>(value =>
+                {
+                    progress.Add(value);
+                    if (value.CompletedPages == 2) stop.Cancel();
+                }), stop.Token, startIndex: 7, priority: priority).GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException) { cancelled = true; }
+            var partial = cache.LoadAsync(publication).GetAwaiter().GetResult();
+            True(cancelled && partial.CompletedPages.SetEquals([7, 3]) && partial.CompletedPairs.SetEquals([6]), "the checkpoint preserves noncontiguous completed source positions and only completed seams");
+            True(progress.Any(value => value.Decisions.ContainsKey(publication.Units[3].Id) && value.FailedPages?.ContainsKey(2) == true), "a failed predecessor is reported with the current-page increment, before the rest of the book");
+            True(partial.FailedPages.ContainsKey(2), "failed neighboring work is durable and remains retryable");
+            var resumePriority = new BookAnalysisPriority(); resumePriority.Promote(5, precedingPages: 1, followingPages: 1);
+            var renders = new List<int>(); var resumedProgress = new List<BookAnalysisProgress>();
+            var resumed = service.AnalyzeAsync(publication, (index, _, _) =>
+            { renders.Add(index); return Task.FromResult(images[index]); },
+                new InlineProgress<BookAnalysisProgress>(resumedProgress.Add), priority: resumePriority).GetAwaiter().GetResult();
+            Equal(5, renders[0], "a reopened worker starts at the newly promoted reading position");
+            True(resumedProgress[0].FromCache && resumedProgress[0].FailedPages?.ContainsKey(2) == true, "initial cached progress includes failed neighbors for first-paint readiness");
+            True(resumedProgress.Skip(1).All(value => !value.Decisions.ContainsKey(publication.Units[3].Id) && !value.Decisions.ContainsKey(publication.Units[7].Id)), "completed automatic page decisions are reused after dynamic cancellation");
+            True(resumed.IsComplete && resumed.CacheKey == partial.CacheKey && resumed.FailedPages.Count == 0 && resumedProgress[^1].FailedPages?.Count == 0, "successful retry clears failure snapshots while completing the same cache identity");
+        });
+
         Check("whole-book analysis rejects stale source, locator, publisher and algorithm cache identities", () =>
         {
             var publication = AnalysisPublication("versioned-book", 2);
@@ -154,12 +234,13 @@ internal static partial class Program
             var service = new BookAnalysisService(cache);
             var bitmap = DialogueFixture(false);
             var rendered = new List<int>();
+            var priority = new BookAnalysisPriority();
             var partial = service.AnalyzeAsync(publication, (index, _, _) =>
             {
                 rendered.Add(index);
                 if (index == 1) throw new InvalidOperationException("Generated decoder failure");
                 return Task.FromResult(bitmap);
-            }).GetAwaiter().GetResult();
+            }, new InlineProgress<BookAnalysisProgress>(_ => priority.Promote(1)), priority: priority).GetAwaiter().GetResult();
             True(!partial.IsComplete && partial.FailedPages.ContainsKey(1), "a bad page remains retryable");
             True(rendered.Contains(3) && partial.CompletedPages.Contains(3) && partial.CompletedPairs.Contains(2), "a decoder failure does not stop later pages and neighbors");
             Equal(1, rendered.Count(index => index == 1), "a failed page is not repeatedly decoded in the same scan");

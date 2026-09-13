@@ -6,7 +6,7 @@ namespace ShuiMan.Core;
 
 public sealed record BookAnalysisProgress(int CompletedPages, int TotalPages,
     IReadOnlyDictionary<string, SpreadDecision> Decisions, IReadOnlyDictionary<int, PairDecision> Pairs,
-    bool IsComplete = false, bool FromCache = false, string? Warning = null);
+    bool IsComplete = false, bool FromCache = false, string? Warning = null, IReadOnlyDictionary<int, string>? FailedPages = null);
 
 /// <summary>
 /// Scans from the requested reading position to the end, then fills preceding pages on a worker.
@@ -19,7 +19,8 @@ public sealed class BookAnalysisService(AnalysisCache cache)
 
     public Task<BookAnalysisSnapshot> AnalyzeAsync(Publication publication,
         Func<int, int, CancellationToken, Task<BitmapSource>> render,
-        IProgress<BookAnalysisProgress>? progress = null, CancellationToken cancellationToken = default, int startIndex = 0)
+        IProgress<BookAnalysisProgress>? progress = null, CancellationToken cancellationToken = default, int startIndex = 0,
+        BookAnalysisPriority? priority = null)
     {
         ArgumentNullException.ThrowIfNull(publication); ArgumentNullException.ThrowIfNull(render);
         return Task.Run(async () =>
@@ -27,7 +28,7 @@ public sealed class BookAnalysisService(AnalysisCache cache)
             var result = await cache.LoadAsync(publication, cancellationToken).ConfigureAwait(false);
             progress?.Report(new(result.CompletedPages.Count, result.TotalPages, new Dictionary<string, SpreadDecision>(result.Decisions),
                 new Dictionary<int, PairDecision>(result.Pairs), result.IsComplete,
-                result.CompletedPages.Count > 0 || result.CompletedPairs.Count > 0, cache.Warning));
+                result.CompletedPages.Count > 0 || result.CompletedPairs.Count > 0, cache.Warning, new Dictionary<int, string>(result.FailedPages)));
             if (result.IsComplete) return result;
             var checkpoint = Stopwatch.StartNew();
             int changesSinceCheckpoint = 0;
@@ -37,12 +38,10 @@ public sealed class BookAnalysisService(AnalysisCache cache)
             var failedThisRun = new HashSet<int>();
             try
             {
-                int pageCount = publication.Units.Count;
-                int firstIndex = Math.Clamp(startIndex, 0, Math.Max(0, pageCount - 1));
-                for (int offset = 0; offset < pageCount; offset++)
+                int processed = 0;
+                foreach (int index in (priority ?? new BookAnalysisPriority()).VisitOrder(publication.Units.Count, startIndex, cancellationToken))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    int index = (int)(((long)firstIndex + offset) % pageCount);
                     // Visiting a page out of source order never makes it adjacent to the prior
                     // visited page. The seam always uses this page and its physical predecessor.
                     var unit = publication.Units[index];
@@ -90,7 +89,12 @@ public sealed class BookAnalysisService(AnalysisCache cache)
                         else
                         {
                             if (previousIndex != index - 1 || previous == null)
-                            { previous = await ReadImage(index - 1).ConfigureAwait(false); previousIndex = index - 1; }
+                            {
+                                // A navigation promotion can leave a bitmap from an unrelated page.
+                                // Release it before decoding the actual neighbor to retain only two images.
+                                previous = null; previousIndex = -1;
+                                previous = await ReadImage(index - 1).ConfigureAwait(false); previousIndex = index - 1;
+                            }
                             if (previous != null && current != null)
                             {
                                 cancellationToken.ThrowIfCancellationRequested();
@@ -109,13 +113,15 @@ public sealed class BookAnalysisService(AnalysisCache cache)
                     previous = nextPairPending && EligiblePair(publication, index) ? current : null;
                     previousIndex = previous == null ? -1 : index;
                     // Checkpoint early, periodically, and on exit; avoid quadratic disk writes for long books.
-                    if (dirty && (offset == 0 || changesSinceCheckpoint >= 8 || checkpoint.Elapsed >= TimeSpan.FromSeconds(2)))
+                    if (dirty && (processed == 0 || changesSinceCheckpoint >= 8 || checkpoint.Elapsed >= TimeSpan.FromSeconds(2)))
                     {
                         await cache.SaveAsync(publication, result, cancellationToken).ConfigureAwait(false);
                         dirty = false; changesSinceCheckpoint = 0; checkpoint.Restart();
                     }
                     progress?.Report(new(result.CompletedPages.Count, result.TotalPages, orientationDelta, pairDelta,
-                        result.IsComplete, Warning: result.FailedPages.GetValueOrDefault(index) ?? cache.Warning));
+                        result.IsComplete, Warning: result.FailedPages.GetValueOrDefault(index) ?? cache.Warning,
+                        FailedPages: new Dictionary<int, string>(result.FailedPages)));
+                    processed++;
                 }
                 return result;
             }

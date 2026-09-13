@@ -88,6 +88,8 @@ internal static partial class Program
             await LibraryChecks(root);
             await NativeEpubChecks(root);
             await BackgroundReaderChecks(root);
+            await FirstPaintChecks(root);
+            await RightRivalFirstPaintChecks(root);
             await DoublePageChecks(root);
             Check("the Windows reader has no browser or WebView assembly dependency", !typeof(ShuiMan.Windows.MainWindow).Assembly.GetReferencedAssemblies().Any(assembly => assembly.Name?.Contains("WebView", StringComparison.OrdinalIgnoreCase) == true));
             await Task.Delay(200);

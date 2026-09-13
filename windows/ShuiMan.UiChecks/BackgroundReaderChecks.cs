@@ -188,7 +188,7 @@ internal static partial class Program
             await draw.WaitAsync(TimeSpan.FromSeconds(10));
             var dispatcher = SynchronizationContext.Current ?? throw new InvalidOperationException("Expected the UI dispatcher context.");
             paused = new BackgroundProgressGate(dispatcher, update => rotation
-                ? update.Decisions.ContainsKey(source.Publication.Units[page].Id) : update.Pairs.ContainsKey(2));
+                ? update.Decisions.ContainsKey(source.Publication.Units[page].Id) : update.Pairs.ContainsKey(3));
             SynchronizationContext.SetSynchronizationContext(paused);
             try { typeof(MainWindow).GetMethod("StartBookAnalysis", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(reader, [source]); }
             finally { SynchronizationContext.SetSynchronizationContext(dispatcher); }

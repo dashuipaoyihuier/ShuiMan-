@@ -2,7 +2,7 @@
   #error Inno Setup 6.7 or newer is required.
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.7.0"
+  #define AppVersion "0.7.1"
 #endif
 #ifndef PayloadDir
   #error Pass /DPayloadDir pointing to the self-contained publish folder.

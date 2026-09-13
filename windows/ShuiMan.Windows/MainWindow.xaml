@@ -45,6 +45,7 @@
        <Button Content="&#xE713;" FontFamily="Segoe MDL2 Assets" Click="CorrectionsClick" Style="{StaticResource IconButton}" ToolTip="阅读设置"><Button.ContextMenu><ContextMenu>
         <MenuItem x:Name="SmartMenu" Header="智能大跨页" IsCheckable="True" IsChecked="True" Click="SettingClick"/><MenuItem x:Name="PairsMenu" Header="自动识别相邻双图" IsCheckable="True" IsChecked="True" Click="SettingClick"/>
         <MenuItem x:Name="AggressiveMenu" Header="积极识别相邻跨页（与 macOS 一致）" IsCheckable="True" IsChecked="True" Click="SettingClick"/>
+        <MenuItem x:Name="SeamAlignmentMenu" Header="接缝自动调节" IsCheckable="True" IsChecked="False" Click="SettingClick"/>
         <MenuItem x:Name="OrientationMenu" Header="智能文字朝向与自动转向" IsCheckable="True" IsChecked="True" Click="SettingClick"/><MenuItem x:Name="CoverMenu" Header="封面单独显示" IsCheckable="True" IsChecked="True" Click="SettingClick"/><Separator/>
         <MenuItem Header="重新分析整本漫画" Click="ReanalyzeClick"/><Separator/>
         <MenuItem x:Name="DarkMenu" Header="深色阅读背景" IsCheckable="True" IsChecked="True" Click="SettingClick"/>

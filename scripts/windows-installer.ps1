@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.7.0',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.7.1',
     [string]$PayloadDirectory,
     [string]$CompilerPath,
     [switch]$TestMode

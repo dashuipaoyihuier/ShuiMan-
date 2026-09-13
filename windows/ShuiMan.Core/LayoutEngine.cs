@@ -79,7 +79,8 @@ public static class LayoutEngine
             else if (automatic.TryGetValue(i, out var pair))
             {
                 groups.Add(new(pair.Swapped ? [i + 1, i] : [i, i + 1], true,
-                    ValidOffset(pair.VerticalOffset), ValidScale(pair.RightScale)));
+                    preferences.AutomaticSeamAlignment ? ValidOffset(pair.VerticalOffset) : 0,
+                    preferences.AutomaticSeamAlignment ? ValidScale(pair.RightScale) : 1));
                 i += 2;
             }
             else if (Alone(i) || !doublePage || i + 1 == units.Count || Alone(i + 1) ||
