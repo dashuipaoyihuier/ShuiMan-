@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ShuiMan.Core;
@@ -51,6 +52,24 @@ internal static partial class Program
             await WaitUntil(() => store.Books.Single().Overrides.GetValueOrDefault(firstId)?.Rotation == 180 && !busy.IsVisible, "native EPUB manual rotation is saved");
             reader.UpdateLayout();
             Check("the real EPUB rotation command overrides its publisher and visibly turns the page", CaptureSurface(surface).Bounds.Width < CaptureSurface(surface).Bounds.Height);
+
+            var manuallyRotated = CaptureSurface(surface);
+            Keyboard.ClearFocus();
+            foreach (int angle in new[] { 270, 0, 90, 180 })
+            {
+                var key = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(reader), Environment.TickCount, Key.Up)
+                    { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                reader.RaiseEvent(key);
+                await WaitUntil(() => store.Books.Single().Overrides.GetValueOrDefault(firstId)?.Rotation == angle && !busy.IsVisible, "up arrow rotation is persisted");
+                reader.UpdateLayout();
+                var bounds = CaptureSurface(surface).Bounds;
+                Check($"up arrow rotates the current page to {angle} degrees and persists the manual override", key.Handled && (angle % 180 == 0 ? bounds.Width < bounds.Height : bounds.Width > bounds.Height));
+            }
+            Check("four up arrow presses restore the same rendered page", CaptureSurface(surface).Pixels.SequenceEqual(manuallyRotated.Pixels));
+            var pageInput = (TextBox)reader.FindName("PageNumber");
+            pageInput.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(pageInput), Environment.TickCount, Key.Up)
+                { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+            Check("up arrow in the page input does not rotate the comic", store.Books.Single().Overrides[firstId].Rotation == 180);
 
             Menu("与下一页配对");
             try { await WaitUntil(() => store.Books.Single().Overrides.GetValueOrDefault(firstId)?.JoinNext == true && status.Text.Contains("1–2") && !busy.IsVisible, "native EPUB pairing displays both source images"); }

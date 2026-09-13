@@ -38,7 +38,7 @@
       <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
        <Button x:Name="BookmarkButton" Content="☆" Click="ToggleBookmarkClick" Style="{StaticResource IconButton}" ToolTip="添加或移除书签 · Ctrl+B"/>
        <Button x:Name="CorrectionButton" Content="修正" Click="CorrectionsClick" Style="{StaticResource GhostButton}" Margin="5,0"><Button.ContextMenu><ContextMenu>
-        <MenuItem Header="向右旋转 90°" Click="RotateRightClick"/><MenuItem Header="向左旋转 90°" Click="RotateLeftClick"/><Separator/>
+        <MenuItem Header="向右旋转 90°" InputGestureText="↑" Click="RotateRightClick"/><MenuItem Header="向左旋转 90°" Click="RotateLeftClick"/><Separator/>
         <MenuItem Header="与下一页配对" Click="PairClick"/><MenuItem Header="交换双图左右" Click="SwapClick"/><MenuItem Header="取消配对 / 单独显示" Click="UnpairClick"/>
         <MenuItem Header="接缝微调…" Click="SeamClick"/><Separator/><MenuItem Header="恢复当前页自动识别" Click="ResetCorrectionClick"/>
        </ContextMenu></Button.ContextMenu></Button>

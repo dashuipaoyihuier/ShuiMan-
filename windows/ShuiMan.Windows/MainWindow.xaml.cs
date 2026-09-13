@@ -631,13 +631,19 @@ public partial class MainWindow : Window
         if (e.Key == Key.O && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { OpenFileClick(this, e); e.Handled = true; return; }
         if (e.Key == Key.F11 || e.Key == Key.Escape && _fullScreen) { FullScreen(); e.Handled = true; return; }
         if (e.Key == Key.L && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { e.Handled = true; await Run(ShowLibraryAsync); return; }
-        if (ReaderHost.Visibility != Visibility.Visible || Keyboard.FocusedElement is TextBox or PasswordBox or ComboBox) return;
+        if (ReaderHost.Visibility != Visibility.Visible || Keyboard.FocusedElement is TextBox or PasswordBox or ComboBox || e.OriginalSource is TextBox or PasswordBox or ComboBox) return;
+        if (e.Key == Key.Up && Keyboard.Modifiers == ModifierKeys.None && _book != null && CorrectionButton.IsEnabled && CorrectionButton.ContextMenu?.IsOpen != true)
+        {
+            e.Handled = true;
+            if (!e.IsRepeat) await Run(() => Rotate(90));
+            return;
+        }
         if (e.Key == Key.B && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { ToggleBookmarkClick(this, e); e.Handled = true; return; }
         int delta = e.Key == Key.Right ? (_saved?.Preferences.Direction == "rtl" ? -1 : 1) : e.Key == Key.Left ? (_saved?.Preferences.Direction == "rtl" ? 1 : -1) : e.Key is Key.PageDown or Key.Space ? 1 : e.Key == Key.PageUp ? -1 : 0;
         if (delta != 0) { e.Handled = true; await Run(() => Turn(delta)); }
         else if (e.Key is Key.Home or Key.End && _book != null) { e.Handled = true; await Run(() => ShowPageAsync(e.Key == Key.Home ? 0 : _book.Publication.Units.Count - 1)); }
     }
-    private void HelpClick(object sender, RoutedEventArgs e) => MessageBox.Show(this, "水漫 Windows 0.7.0\n\n打开：Ctrl+O。返回书库：Ctrl+L。\n书库可拖入多个文件或目录，支持封面、系列、标签和收藏。\n翻页：方向键、Page Up/Down、空格；方向键遵循阅读方向。\n跳页：底部输入页码，按 Enter。\n缩放：Ctrl+滚轮；放大后拖动画面。\n书签：Ctrl+B。全屏：F11，Esc 退出。\n\nZIP/CBZ 按文件名自然排序，支持嵌套目录及中文文件名。\nEPUB 遵循 spine 顺序，以原生画布显示漫画图片。\nMOBI 支持无 DRM 的 MOBI 6 图片漫画。\n\n自动跨页分析较为保守，可通过“页面修正”纠正。\n本地数据目录：" + _dataDirectory, "关于水漫", MessageBoxButton.OK, MessageBoxImage.Information);
+    private void HelpClick(object sender, RoutedEventArgs e) => MessageBox.Show(this, "水漫 Windows 0.7.0\n\n打开：Ctrl+O。返回书库：Ctrl+L。\n书库可拖入多个文件或目录，支持封面、系列、标签和收藏。\n翻页：左右方向键、Page Up/Down、空格；左右键遵循阅读方向。\n旋转：↑，当前页向右旋转 90°，自动保存。\n跳页：底部输入页码，按 Enter。\n缩放：Ctrl+滚轮；放大后拖动画面。\n书签：Ctrl+B。全屏：F11，Esc 退出。\n\nZIP/CBZ 按文件名自然排序，支持嵌套目录及中文文件名。\nEPUB 遵循 spine 顺序，以原生画布显示漫画图片。\nMOBI 支持无 DRM 的 MOBI 6 图片漫画。\n\n自动跨页分析较为保守，可通过“页面修正”纠正。\n本地数据目录：" + _dataDirectory, "关于水漫", MessageBoxButton.OK, MessageBoxImage.Information);
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
         if (_closed) return; e.Cancel = true; if (_closing) return;
