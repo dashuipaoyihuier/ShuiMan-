@@ -8,7 +8,7 @@ The project supports local image folders, PDF, EPUB, and additional local format
 
 ## Windows 0.7.0
 
-[Download Windows installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Setup-0.7.0-x64.exe) · [Portable ZIP](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Windows-x64.zip) · [Release notes](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0)
+[Windows 0.7.0 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Setup-0.7.0-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/Shuiman-0.6.0-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0)
 
 Requires Windows 10 version 2004+ or Windows 11, x64. The Chinese installer includes .NET, installs for the current user, supports upgrades and standard Windows uninstallation, and preserves the library and source books. Desktop shortcuts and Open With integration are optional. EPUB comic images use the native reader canvas without a browser runtime.
 
@@ -20,7 +20,7 @@ ZIP/CBZ reading, natural ordering, Chinese archive paths, PDF, multi-frame TIFF,
 
 All illustrated covers in this screenshot are original, generated in code for the demonstration.
 
-With the .NET 10 SDK installed, run `./scripts/windows-build.ps1`. To produce the installer, install Inno Setup 6.7+ with `./scripts/windows-setup-compiler.ps1`, then run `./scripts/windows-installer.ps1`. See [Windows documentation](windows/README.md) and [validation results](docs/windows-validation.md) for details and limitations. Other platform packages remain in the [previous release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/Comic).
+With the .NET 10 SDK installed, run `./scripts/windows-build.ps1`. To produce the installer, install Inno Setup 6.7+ with `./scripts/windows-setup-compiler.ps1`, then run `./scripts/windows-installer.ps1`. See [Windows documentation](windows/README.md) and [validation results](docs/windows-validation.md) for details and limitations. The release also includes the latest previously published Android and macOS packages under their original version names.
 
 ## Highlight: intelligent spread reading
 

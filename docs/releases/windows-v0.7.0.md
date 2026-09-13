@@ -5,8 +5,8 @@
 ## 下载与安装
 
 - **推荐安装版：`ShuiMan-Setup-0.7.0-x64.exe`**。中文安装向导，默认安装到当前用户，创建开始菜单快捷方式；桌面快捷方式和“打开方式”入口可按需选择。
-- **免安装版：`ShuiMan-Windows-x64.zip`**。完整解压后，打开 `ShuiMan` 文件夹并运行 `ShuiMan.exe`。
-- **完整性校验：`ShuiMan-Setup-0.7.0-x64.exe.sha256` 和 `ShuiMan-Windows-x64.zip.sha256`**，分别对应以上两个程序包。
+- Release 附件同时收录最新已发布的 Android 1.0.5 APK 和 macOS 0.6.0 Apple Silicon 程序包，保留各平台原版本名。
+- Windows 免安装 ZIP 与 SHA-256 文件由构建脚本和 Windows 工作流生成。便携包完整解压后，打开 `ShuiMan` 文件夹并运行 `ShuiMan.exe`。
 - 支持 **Windows 10 2004（19041）及更新版本、Windows 11，x64**。两个程序包都包含 .NET 与 PDF 阅读所需组件，安装和阅读无需补装浏览器运行时。
 - GitHub 自动提供的 “Source code” 附件是源码，不是可运行的应用安装包。
 

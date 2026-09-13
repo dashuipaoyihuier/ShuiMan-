@@ -4,7 +4,7 @@ Windows 原生 WPF 客户端，和仓库中的 macOS、Android 客户端共享�
 
 ## 运行
 
-从 [Windows 0.7.0 Release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0) 下载 **ShuiMan-Setup-0.7.0-x64.exe**。双击后按中文向导安装。Release 同时提供免安装 `ShuiMan-Windows-x64.zip` 和各自的 SHA-256 校验文件。“Source code” 是开发源码。
+从 [Windows 0.7.0 Release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0) 下载 **ShuiMan-Setup-0.7.0-x64.exe**。双击后按中文向导安装。该页面同时收录最新已发布的 Android、macOS 程序包。“Source code” 是开发源码；Windows 便携 ZIP 与校验文件可通过下方构建脚本生成，或从 Windows 工作流产物获取。
 
 需要 Windows 10 2004（内部版本 19041）或更新版本，x64 架构。程序内含 .NET 运行时。安装包默认安装到 `%LOCALAPPDATA%\Programs\ShuiMan`，无需管理员权限；创建开始菜单快捷方式，可选桌面快捷方式和 ZIP/CBZ/EPUB/PDF/MOBI 的“打开方式”入口，不修改这些格式的默认应用。
 

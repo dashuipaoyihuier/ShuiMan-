@@ -8,7 +8,7 @@
 
 ## Windows 版下载 · 0.7.0
 
-[下载 Windows x64 安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Setup-0.7.0-x64.exe) · [免安装 ZIP](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Windows-x64.zip) · [Release 与更新说明](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0)
+[Windows 0.7.0 安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Setup-0.7.0-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/Shuiman-0.6.0-macOS-arm64.zip) · [全部安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0)
 
 需要 Windows 10 2004+ 或 Windows 11，x64 架构。双击 **ShuiMan-Setup-0.7.0-x64.exe**，按照中文向导安装；之后从开始菜单打开水漫，在 Windows“已安装的应用”中卸载。安装到当前用户，内含 .NET；升级保留书库和进度，卸载保留原漫画与阅读记录。EPUB 漫画图片使用原生阅读画布，不需要浏览器运行时。
 
