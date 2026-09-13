@@ -73,6 +73,11 @@ internal static class Program
         }
         finally
         {
+            // PdfDocument has no IClosable contract. Drain WinRT finalizers while
+            // COM and native worker pools are still alive, before deleting fixtures.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             // This exact per-run directory is created above; never touches user books.
             try { Directory.Delete(root, true); }
             catch (IOException ex) { Console.Error.WriteLine($"Fixture cleanup: {ex.Message}"); }
