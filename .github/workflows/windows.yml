@@ -29,9 +29,20 @@ jobs:
         if: failure()
         shell: pwsh
         run: |
+          $checks = './windows/ShuiMan.Checks/bin/Release/net10.0-windows10.0.19041.0/ShuiMan.Checks.exe'
+          if (Test-Path -LiteralPath $checks) {
+            & $checks --fixtures (Join-Path $env:RUNNER_TEMP ('shuiman-probe-' + [guid]::NewGuid()))
+            Write-Output "Fixture-only exit: $LASTEXITCODE"
+            foreach ($filter in @('PDF count', 'single image rendering', 'layout invariants')) {
+              & $checks --filter $filter
+              Write-Output "$filter exit: $LASTEXITCODE"
+            }
+          }
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-20) } -ErrorAction SilentlyContinue |
             Where-Object { $_.ProviderName -in @('Application Error', '.NET Runtime', 'Windows Error Reporting') } |
             Select-Object -First 15 TimeCreated, ProviderName, Id, Message | Format-List
+          # The original failed build step remains failed; diagnostics are best effort.
+          exit 0
       - name: Upload portable application
         uses: actions/upload-artifact@v4
         with:

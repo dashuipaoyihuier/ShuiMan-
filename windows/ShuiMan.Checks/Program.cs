@@ -10,6 +10,8 @@ internal static class Program
 {
     private static int passed;
     private static int failed;
+    private static int matched;
+    private static string? filter;
 
     [STAThread]
     private static int Main(string[] args)
@@ -44,9 +46,14 @@ internal static class Program
             Console.WriteLine($"Original fixtures generated: {destination}");
             return 0;
         }
-        if (args.Length != 0)
+        if (args.Length == 2 && args[0] == "--filter" && !string.IsNullOrWhiteSpace(args[1]))
         {
-            Console.Error.WriteLine("Usage: ShuiMan.Checks [--fixtures <directory>]");
+            filter = args[1];
+            Console.WriteLine($"FILTER: {filter} (case-insensitive test-name substring)");
+        }
+        else if (args.Length != 0)
+        {
+            Console.Error.WriteLine("Usage: ShuiMan.Checks [--fixtures <directory> | --filter <substring>]");
             return 2;
         }
         var root = Path.Combine(Path.GetTempPath(), "ShuiMan-Checks-" + Guid.NewGuid().ToString("N"));
@@ -69,6 +76,11 @@ internal static class Program
             // This exact per-run directory is created above; never touches user books.
             try { Directory.Delete(root, true); }
             catch (IOException ex) { Console.Error.WriteLine($"Fixture cleanup: {ex.Message}"); }
+        }
+        if (filter != null && matched == 0)
+        {
+            failed++;
+            Console.Error.WriteLine($"FAIL filter: no tests matched '{filter}'.");
         }
         Console.WriteLine($"RESULT: {passed} passed, {failed} failed");
         return failed == 0 ? 0 : 1;
@@ -497,6 +509,8 @@ internal static class Program
     }
     private static void Check(string name, Action body)
     {
+        if (filter != null && !name.Contains(filter, StringComparison.OrdinalIgnoreCase)) return;
+        matched++;
         try { body(); passed++; Console.WriteLine($"PASS {name}"); }
         catch (Exception ex) { failed++; Console.Error.WriteLine($"FAIL {name}: {ex}"); }
     }
