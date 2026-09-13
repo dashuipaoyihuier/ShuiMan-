@@ -83,3 +83,5 @@ dotnet run --project .\windows\ShuiMan.Windows\ShuiMan.Windows.csproj
 `windows-ui-test.ps1` 使用真实 WPF/WebView2 控件和独立临时书库检查 EPUB 资源加载、离线限制、页码同步及关闭窗口。缺少 WebView2 时会明确输出 `SKIP`；该结果不代表 UI 检查通过。运行前关闭相同构建配置的开发程序，避免程序文件被占用；也可用 `-Configuration Debug` 隔离开发检查。
 
 [验证记录](../docs/windows-validation.md)列出本次实际检查与限制。GitHub Actions 的 Windows 工作流执行同一构建脚本并上传便携包；它不自动创建 GitHub Release。
+
+首次使用 Git 可参考 [Windows 提交代码入门](../docs/git-windows.md)，了解本地提交、推送分支和发布程序包的区别。

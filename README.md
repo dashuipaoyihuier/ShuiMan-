@@ -40,6 +40,8 @@ Windows 首版 **0.6.0** 面向 Windows 10 2004+ / Windows 11 x64。完整解压
 
 输出：`build/windows/ShuiMan/ShuiMan.exe` 和 `build/windows/ShuiMan-Windows-x64.zip`。支持 ZIP/CBZ 中文文件名、嵌套目录、自然数字排序，以及书库、进度、书签、缩放、双页和手动跨页修正。
 
+开发新手可参考 [Windows 上提交代码](docs/git-windows.md)，了解检查改动、提交、推送和创建功能分支。
+
 本项目以 [Apache License 2.0](LICENSE) 发布。
 
 水波主题封面与蓝绿 UI 说明见 [水漫设计与安装](docs/水漫设计与安装.md)。
