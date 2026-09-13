@@ -122,7 +122,7 @@ struct ContentView: View {
     }
     private var pageMenu: some View {
         Menu {
-            Button("顺时针旋转 90°") { session.rotate(90) }
+            Button("顺时针旋转 90°（↑ / R）") { session.rotate(90) }
             Button("逆时针旋转 90°") { session.rotate(-90) }
             Divider()
             Button("与下一页组成跨页") { session.joinNext() }.disabled((session.publication?.units.count ?? 0) <= session.index+1 || session.showWeb)
