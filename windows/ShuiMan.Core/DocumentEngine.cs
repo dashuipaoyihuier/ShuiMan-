@@ -87,6 +87,7 @@ internal abstract class RasterBook : IOpenBook
     public Publication Publication { get; protected set; } = new();
     protected volatile bool Disposed;
     public abstract byte[]? Resource(string path);
+    protected virtual int FrameIndex(ReadingUnit unit) => unit.Locator.ImageIndex;
     public virtual Task<BitmapSource> RenderAsync(int index, int maxEdge = 2400, CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
@@ -105,9 +106,9 @@ internal abstract class RasterBook : IOpenBook
         }
         var unit = Publication.Units[index];
         if (unit.Error != null) throw new InvalidDataException(unit.Error);
-        if (unit.Complex) throw new NotSupportedException("此页面需使用网页阅读视图。");
+        if (unit.Complex) throw new NotSupportedException("此阅读位置不包含可显示的原生漫画图片。");
         var data = Resource(unit.ImagePath ?? unit.Locator.Resource) ?? throw new InvalidDataException("页面图片资源缺失。");
-        var bitmap = RasterDecoder.Decode(data, unit.Locator.ImageIndex, maxEdge);
+        var bitmap = RasterDecoder.Decode(data, FrameIndex(unit), maxEdge);
         cancellationToken.ThrowIfCancellationRequested();
         long bytes = (long)bitmap.PixelWidth * bitmap.PixelHeight * 4;
         lock (cacheGate)

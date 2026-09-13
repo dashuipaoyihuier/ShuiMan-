@@ -2,12 +2,6 @@
   "version": 1,
   "dependencies": {
     "net10.0-windows10.0.19041": {
-      "Microsoft.Web.WebView2": {
-        "type": "Direct",
-        "requested": "[1.0.4191.47, )",
-        "resolved": "1.0.4191.47",
-        "contentHash": "Snb6mlTpuz6ZFjWMwIdg28Xp6kAUMy3zaLUyGbFSaw+/AJKlwoX8EiaWJ1eUMfKyJHksPkFjJHl1LIB7kX+0AQ=="
-      },
       "AngleSharp": {
         "type": "Transitive",
         "resolved": "1.8.1",
@@ -61,12 +55,6 @@
       }
     },
     "net10.0-windows10.0.19041/win-x64": {
-      "Microsoft.Web.WebView2": {
-        "type": "Direct",
-        "requested": "[1.0.4191.47, )",
-        "resolved": "1.0.4191.47",
-        "contentHash": "Snb6mlTpuz6ZFjWMwIdg28Xp6kAUMy3zaLUyGbFSaw+/AJKlwoX8EiaWJ1eUMfKyJHksPkFjJHl1LIB7kX+0AQ=="
-      },
       "bblanchon.PDFium.Linux": {
         "type": "Transitive",
         "resolved": "154.0.8035",

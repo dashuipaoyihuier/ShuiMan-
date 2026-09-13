@@ -46,6 +46,7 @@ internal static class Fixtures
         });
         Archive(Path.Combine(directory, "unsafe.zip"), new() { ["../outside.png"] = first, ["1.png"] = first });
         GenerateEpub(Path.Combine(directory, "spine.epub"), first, second);
+        EpubFixtures.Generate(directory, first, second);
         GeneratePdf(Path.Combine(directory, "sample.pdf"));
         GeneratePdf(Path.Combine(directory, "password.pdf"), "reading-pass");
         GenerateMobi(directory, first, second, tenth);

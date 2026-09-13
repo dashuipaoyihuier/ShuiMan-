@@ -4,31 +4,28 @@ Windows 原生 WPF 客户端，和仓库中的 macOS、Android 客户端共享�
 
 ## 运行
 
-从 [Windows 0.6.0 Release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.6.0) 下载 `ShuiMan-Windows-x64.zip`。同一页面提供完整更新说明和 SHA-256 校验文件；GitHub 自动附加的 “Source code” 是开发源码，不是可运行的 Windows 安装包。
+从 [Windows 0.7.0 Release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0) 下载 **ShuiMan-Setup-0.7.0-x64.exe**。双击后按中文向导安装。Release 同时提供免安装 `ShuiMan-Windows-x64.zip` 和各自的 SHA-256 校验文件。“Source code” 是开发源码。
 
-需要 Windows 10 2004（内部版本 19041）或更新版本，x64 架构。发行包自带 .NET 运行时：完整解压 `ShuiMan-Windows-x64.zip`，进入 `ShuiMan` 目录并双击 `ShuiMan.exe`。请保留整个程序目录。
+需要 Windows 10 2004（内部版本 19041）或更新版本，x64 架构。程序内含 .NET 运行时。安装包默认安装到 `%LOCALAPPDATA%\Programs\ShuiMan`，无需管理员权限；创建开始菜单快捷方式，可选桌面快捷方式和 ZIP/CBZ/EPUB/PDF/MOBI 的“打开方式”入口，不修改这些格式的默认应用。
 
-复杂 EPUB 的 HTML/CSS 页面由 Microsoft Edge WebView2 显示，需要 [WebView2 Evergreen 运行时](https://developer.microsoft.com/microsoft-edge/webview2/)。多数 Windows 10/11 电脑已包含该组件；普通图片漫画和 PDF 不依赖它。运行时不包含在便携 ZIP 中。
+升级时关闭水漫并运行新版安装包，原安装位置、书库和进度会保留；支持从 0.6.0 脚本安装目录升级。在 Windows“设置 → 应用 → 已安装的应用”中卸载水漫，原漫画、`%LOCALAPPDATA%\ShuiMan` 中的书库均保留。
 
-可选安装到当前用户：双击解压目录中的 `Install.cmd`，或执行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -DesktopShortcut
-```
-
-脚本检查 WebView2，缺少时通过 Windows 包管理器 `winget` 安装微软运行时，然后将程序复制到 `%LOCALAPPDATA%\Programs\ShuiMan`，并创建开始菜单和桌面快捷方式。水漫本身无需管理员权限；WebView2 补装可能出现 Windows 权限提示，遵循[微软运行时分发规则](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution)。首次补装 WebView2 需要网络和 winget；没有 winget 的电脑可先用微软网站的官方安装器。更新前关闭程序，从新版解压目录运行同一命令。关闭程序后运行安装目录的 `uninstall.ps1` 可卸载水漫；原漫画、书库、阅读记录和共享 WebView2 运行时会保留。
+EPUB 按出版物顺序读取漫画图片，使用与 ZIP/PDF 相同的原生画布；无需 WebView2 或浏览器运行时。纯文字页与无法提取漫画图片的页面会保留位置并显示提示。便携包完整解压后双击 `ShuiMan/ShuiMan.exe` 即可；正式安装推荐 Setup.exe。
 
 ## 阅读和书库
 
-- “打开文件”或 `Ctrl+O` 选择漫画；支持拖入文件。
-- “图片文件夹”直接阅读文件夹及其子目录中的图片。“导入书库”扫描文件夹中的书籍。
-- 书库可搜索、收藏、标记已读、改名或移除记录；移除记录保留原始文件。
-- 页面、目录、书签侧栏用于跳转；底部页码输入后按 Enter 跳转。
-- 支持单页/双页、左右阅读方向、整页/宽度/原始尺寸、缩放、全屏。
-- “页面修正”提供旋转、与下一页配对、交换双图左右、解除配对、接缝微调和恢复自动识别。
-- 手工确认的双图保存物理左右顺序，切换阅读方向后仍保留；手工修正优先于自动结果。
+- 在书库点“导入漫画”，一次添加多个文件；也可拖入文件或目录。在“漫画来源”中添加、刷新或停止扫描目录。
+- 来源目录每分钟扫描一次，也可手动刷新。新文件自动进入书库；重扫保留自定义书名、标签、收藏和进度。来源中已移除的条目会在下次扫描重新发现；要停止发现，可先停止扫描该目录。
+- 默认首页只展示系列封面，点击系列进入分卷，分卷按名称自然排序（1、2、10）。分卷封面网格与详细列表可切换；每页最多 48 本，封面按需生成并在本地缓存，最多两个解码任务同时运行。
+- 按书名、系列、标签搜索，按阅读状态筛选，按最近阅读、名称、系列或添加时间排序。“系列”展示分组，点击进入卷列表。
+- 点击星标收藏；“···”菜单可编辑书名、系列、标签、阅读状态，或移除书库记录。系列初始取目录名，同名系列合并显示。
+- 点击封面或“继续阅读”进入阅读视图；标题栏“书库”或 `Ctrl+L` 返回书库，保留当前打开的书和进度。“阅读”可直接回到原页。
+- 页面、目录、书签侧栏用于跳转；底部页码输入后按 Enter。支持单页/双页、左右方向、整页/宽度/原始尺寸、缩放、全屏。
+- 打开书籍即在后台扫描整本，底部显示进度；扫描结果缓存到 `analysis/`，再次打开复用并续扫未完成页面。明确 EPUB 旋转信息立即生效；翻页使用已完成结果，后台新发现的当前画面可点“应用识别”。阅读设置中可重新分析整本。
+- 与 macOS 相同，默认启用积极识别相邻跨页，可关闭以使用更严格的配对判断；普通“双页”布局与智能双图配对分别控制。
+- “修正”提供旋转、与下一页配对、交换左右、解除配对、接缝滑块和恢复自动识别。手工确认的双图物理左右顺序不随阅读方向改变。
 
-书库、进度、稳定页面定位、书签、收藏和每本书的阅读设置保存到 `%LOCALAPPDATA%\ShuiMan\library.json`。写入采用临时文件替换并保留上一份 `.bak`；主文件损坏时尝试从备份恢复并显示提示。程序不修改原漫画。
+书库、稳定页面定位、书签、收藏、标签和阅读设置保存到 `%LOCALAPPDATA%\ShuiMan\library.json`；来源目录保存在 `folders.json`，封面在 `covers/` 缓存。写入采用临时文件原子替换并保留 `.bak`；主文件损坏时尝试恢复。进度与书库元数据分别合并，避免另一窗口的旧记录覆盖新编辑。程序不修改原漫画。
 
 ## 格式
 
@@ -36,7 +33,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -DesktopShortcut
 | --- | --- |
 | ZIP、CBZ | 直接读取包内图片，无需解压；支持嵌套目录、UTF-8 / 常见 GB18030 中文文件名、自然数字排序（1、2、10），忽略隐藏元数据。 |
 | 图片、图片文件夹 | 支持 PNG、JPEG、GIF、BMP、TIFF、WebP 等图像格式；TIFF 每帧作为独立页面；动画图片按静态页面读取。 |
-| EPUB | 按 spine 顺序阅读，保留重复引用和缺失页面位置；图片页使用原生画布，复杂 HTML/CSS 页使用 WebView2；目录映射到阅读位置。 |
+| EPUB | 按 spine 顺序阅读，保留重复引用和缺失页面位置；图片统一使用原生画布，可旋转和配对；目录映射到阅读位置，不启用网页排版。 |
 | PDF | 使用随程序分发的 PDFium 显示，支持密码提示；页面尺寸和顺序保持原文，关闭书籍后释放源文件。 |
 | MOBI | 支持无 DRM 的 MOBI 6 图片漫画，以及混合格式中的 MOBI 6 正文；支持未压缩/PalmDOC，保留封面、正文图片顺序和重复引用。 |
 
@@ -44,7 +41,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -DesktopShortcut
 
 智能跨页采用保守的接缝证据，并支持有界的偏移和缩放校正。自动方向识别依赖 Windows 可用的 OCR 语言及页面文字线索；竖排文字和低置信度内容不强行旋转，可手动修正。
 
-Windows 自动文字转向目前采用多角度拉丁文字证据；尚未移植 macOS 的全部 CJK 字形分析，中文/日文页面可使用出版物旋转线索和手动修正。大图解码最长边限制为 8192 像素，缩放时会按需提高解码尺寸；更大的原图不会被修改。复杂 EPUB 页面保留出版物的 HTML/CSS 排版，支持缩放和滚动，页面旋转及双图修正只用于图片画布。
+方向优先级为手动修正、当前页明确的 EPUB 旋转标记、无标记时的自动识别。显式 0° 也视为标记；关闭自动识别不会忽略出版物标记。无标记时以 macOS 的中文字形笔画验证为基础，辅以四方向拉丁文字证据；字少、模糊、特殊字体或没有可用 OCR 语言包时保留原方向，支持手动修正。大图解码最长边限制为 8192 像素，缩放时会按需提高解码尺寸；更大的原图不会被修改。EPUB 面向图片漫画，HTML/CSS 文字排版和脚本不执行。
 
 ## 开发和构建
 
@@ -54,6 +51,8 @@ Windows 自动文字转向目前采用多角度拉丁文字证据；尚未移植
 .\scripts\windows-test.ps1
 .\scripts\windows-ui-test.ps1
 .\scripts\windows-build.ps1
+.\scripts\windows-setup-compiler.ps1
+.\scripts\windows-installer.ps1
 ```
 
 构建脚本先运行回归检查，再发布完整自带运行时的 `win-x64` 程序、压缩包和 SHA-256 校验文件：
@@ -62,7 +61,11 @@ Windows 自动文字转向目前采用多角度拉丁文字证据；尚未移植
 build/windows/ShuiMan/ShuiMan.exe
 build/windows/ShuiMan-Windows-x64.zip
 build/windows/ShuiMan-Windows-x64.zip.sha256
+build/windows/ShuiMan-Setup-0.7.0-x64.exe
+build/windows/ShuiMan-Setup-0.7.0-x64.exe.sha256
 ```
+
+安装器用 Inno Setup 6.7+ 编译；`windows-setup-compiler.ps1` 下载官方版本并验证签名。可用 `-CompilerPath` 指定已有编译器。`scripts/windows-installer-test.ps1` 在独立 AppId、目录和文件关联下执行安装/升级/卸载验证。
 
 已在同一版本完成检查后，可用 `-SkipTests` 只重新发布。首次构建需要网络恢复 NuGet 包；依赖版本和锁文件随源代码提交。不要求 Visual Studio、Xcode 或单独安装 ImageMagick。
 
@@ -80,8 +83,19 @@ dotnet run --project .\windows\ShuiMan.Windows\ShuiMan.Windows.csproj
 
 `水漫 演示.zip` 用于正常阅读演示；以 `invalid-`、`broken`、`empty`、`unsafe` 命名的文件用于错误处理检查。自动回归使用独立临时目录并在结束后删除，不读取用户漫画。测试源码和生成器跟踪在 Git 中，生成媒体不提交。
 
-`windows-ui-test.ps1` 使用真实 WPF/WebView2 控件和独立临时书库检查 EPUB 资源加载、离线限制、页码同步及关闭窗口。缺少 WebView2 时会明确输出 `SKIP`；该结果不代表 UI 检查通过。运行前关闭相同构建配置的开发程序，避免程序文件被占用；也可用 `-Configuration Debug` 隔离开发检查。
+`windows-ui-test.ps1` 使用真实 WPF 控件和独立临时书库检查系列与分卷、封面、搜索、元数据、持久化，以及 EPUB 原生页面、修正、页码同步和关闭窗口。运行前关闭相同构建配置的开发程序，避免程序文件被占用；也可用 `-Configuration Debug` 隔离开发检查。
 
-[验证记录](../docs/windows-validation.md)列出本次实际检查与限制。GitHub Actions 的 Windows 工作流执行同一构建脚本并上传便携包；它不自动创建 GitHub Release。
+[验证记录](../docs/windows-validation.md)列出本次实际检查与限制。GitHub Actions 的 Windows 工作流执行核心与原生界面检查、构建并验证安装器，上传安装版和便携包；它不自动创建 GitHub Release。
 
 首次使用 Git 可参考 [Windows 提交代码入门](../docs/git-windows.md)，了解本地提交、推送分支和发布程序包的区别。
+
+
+生成用于界面展示的 10 本原创 ZIP 漫画：
+
+```powershell
+.\scripts\windows-showcase.ps1 -Output .\build\windows-showcase
+```
+
+截图示例：
+
+![Windows 书库](../docs/images/windows-library-070.png)

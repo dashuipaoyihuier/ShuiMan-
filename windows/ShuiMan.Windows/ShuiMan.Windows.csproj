@@ -4,13 +4,12 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>ShuiMan</AssemblyName>
     <RootNamespace>ShuiMan.Windows</RootNamespace>
-    <Version>0.6.0</Version>
+    <Version>0.7.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../ShuiMan.Core/ShuiMan.Core.csproj" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <Resource Include="../../Resources/WaterCover.png" Link="Assets/WaterCover.png" />
   </ItemGroup>
 </Project>

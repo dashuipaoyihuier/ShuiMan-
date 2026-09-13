@@ -16,6 +16,11 @@ internal sealed class EpubBook : RasterBook
     private readonly Dictionary<string, string> stylesheets = new(StringComparer.Ordinal);
     private long stylesheetBytes;
     private record ManifestItem(string Id, string Href, string MediaType, string[] Properties);
+    private record CssRule(string Selector, string Declarations, string Source, int Order);
+    private record StyleBlock(string Declarations, string Source, int Specificity, int Order);
+    // The locator's image ordinal identifies an image occurrence within XHTML,
+    // not a TIFF frame inside that separate image resource.
+    protected override int FrameIndex(ReadingUnit unit) => 0;
 
     public EpubBook(string path, CancellationToken token)
     {
@@ -80,40 +85,50 @@ internal sealed class EpubBook : RasterBook
             try { bytes = archive.Bytes(contentPath, 16 * 1024 * 1024); }
             catch (Exception ex) when (ex is IOException or InvalidDataException) { AddMissing(contentPath, occurrence, ex.Message); continue; }
             var document = new HtmlParser().ParseDocument(DecodeMarkup(bytes));
-            var css = new StringBuilder();
+            var rules = new List<CssRule>();
             foreach (var node in document.QuerySelectorAll("style, link[rel~='stylesheet']"))
             {
-                string? sheet = node.LocalName == "style" ? node.TextContent :
-                    TryResolve(node.GetAttribute("href") ?? "", contentPath) is { } sheetPath ? Stylesheet(sheetPath) : null;
-                if (sheet != null) css.AppendLine(sheet);
+                string sheetPath = node.LocalName == "style" ? contentPath : TryResolve(node.GetAttribute("href") ?? "", contentPath) ?? "";
+                string? sheet = node.LocalName == "style" ? node.TextContent : sheetPath.Length > 0 ? Stylesheet(sheetPath) : null;
+                if (sheet != null) ReadRules(sheet, sheetPath, rules);
             }
-            var images = document.QuerySelectorAll("body img");
-            IElement? image = images.Length == 1 ? images[0] : null;
-            var src = image?.GetAttribute("src");
-            string? imagePath = !string.IsNullOrWhiteSpace(src) ? TryResolve(src, contentPath) : null;
-            bool cover = imagePath != null && imagePath == coverPath;
-            var inlineStyles = string.Join('\n', document.QuerySelectorAll("[style]").Select(x => x.GetAttribute("style")));
-            string layout = css + "\n" + inlineStyles;
-            bool risky = Regex.IsMatch(layout, @"position\s*:\s*(absolute|fixed)|clip(?:-path)?\s*:|background(?:-image)?\s*:[^;}]*url\(|@import|(?:^|[;{\s])(?:filter|opacity|mix-blend-mode|mask|object-position)\s*:|(?:^|[;{\s])(?:display\s*:\s*none|visibility\s*:\s*hidden)", RegexOptions.IgnoreCase);
-            bool hasTransform = Regex.IsMatch(layout, @"(?:^|[;{\s])(?:-\w+-)?transform\s*:", RegexOptions.IgnoreCase);
-            int? rotation = Rotation(image?.GetAttribute("style"));
-            // Stylesheet transforms can be conditional/cascaded: browser rendering preserves them.
-            if (hasTransform && (rotation == null || Regex.IsMatch(css.ToString(), @"transform\s*:", RegexOptions.IgnoreCase) ||
-                document.QuerySelectorAll("[style]").Any(x => x != image && Regex.IsMatch(x.GetAttribute("style") ?? "", @"transform\s*:", RegexOptions.IgnoreCase)))) risky = true;
-            bool complex = imagePath == null || !string.IsNullOrWhiteSpace(document.Body?.TextContent) || risky ||
-                document.QuerySelector("svg, canvas, video, audio, iframe, script, object, table, picture, math") != null;
-            var (dimensions, imageError) = imagePath != null ? ImageInfo(imagePath) : (null, (string?)null);
             string pageTitle = document.Title?.Trim() ?? "";
-            var unit = new ReadingUnit
+            var matchedStyles = MatchStyles(document, rules);
+            int imageIndex = 0;
+            var body = document.Body;
+            foreach (var element in body == null ? document.All : new[] { body }.Concat(body.QuerySelectorAll("*")))
             {
-                Locator = new SourceLocator(contentPath, occurrence), ImagePath = imagePath,
-                Title = cover ? "封面" : pageTitle.Length > 0 ? pageTitle : $"第 {Publication.Units.Count + 1} 页",
-                Width = dimensions?.Width ?? 0, Height = dimensions?.Height ?? 0,
-                IsCover = cover, Complex = complex, RotationHint = complex ? null : rotation,
-                Error = image != null && imagePath == null ? "页面图片路径无效。" : imageError
-            };
-            if (complex) ReadViewport(document, unit);
-            Publication.Units.Add(unit);
+                token.ThrowIfCancellationRequested();
+                if (element.LocalName is "script" or "style" or "link" or "meta") continue;
+                var styles = StylesFor(element, matchedStyles, contentPath);
+                var (background, backgroundSource) = DeclarationValue(styles, @"background(?:-image)?");
+                if (background != null)
+                    foreach (Match reference in Regex.Matches(background, "url\\(\\s*(?:\"(?<url>[^\"]*)\"|'(?<url>[^']*)'|(?<url>[^)\\s]*))\\s*\\)", RegexOptions.IgnoreCase))
+                        AddImage(reference.Groups["url"].Value, backgroundSource ?? contentPath, element);
+                if (element.LocalName == "img")
+                    AddImage(element.GetAttribute("src") ?? "", contentPath, element);
+                else if (element.LocalName == "image" && element.NamespaceUri == "http://www.w3.org/2000/svg")
+                    AddImage(element.GetAttribute("href") ?? element.GetAttribute("xlink:href") ?? element.Attributes.FirstOrDefault(attribute => attribute.LocalName == "href")?.Value ?? "", contentPath, element);
+            }
+            if (imageIndex == 0)
+                AddMissing(contentPath, occurrence, "此阅读位置没有可显示的漫画图片。Windows 版仅阅读 EPUB 图片，不提供文字网页排版。");
+            else if (HasReadableText(body))
+                Publication.Warnings.Add("这本 EPUB 含图片之外的文字；Windows 版只显示漫画图片，不提供文字网页排版。");
+
+            void AddImage(string reference, string relativeTo, IElement element)
+            {
+                if (Publication.Units.Count >= 100_000) throw new InvalidDataException("EPUB 包含过多漫画图片。");
+                string? imagePath = string.IsNullOrWhiteSpace(reference) ? null : TryResolve(reference, relativeTo);
+                var (dimensions, imageError) = imagePath != null ? ImageInfo(imagePath) : (null, "页面图片路径无效。");
+                bool cover = imagePath != null && imagePath == coverPath;
+                Publication.Units.Add(new ReadingUnit
+                {
+                    Locator = new SourceLocator(contentPath, occurrence, imageIndex++), ImagePath = imagePath,
+                    Title = cover ? "封面" : pageTitle.Length > 0 ? pageTitle : $"第 {Publication.Units.Count + 1} 页",
+                    Width = dimensions?.Width ?? 0, Height = dimensions?.Height ?? 0,
+                    IsCover = cover, Complex = false, RotationHint = RotationFor(element, matchedStyles, contentPath), Error = imageError
+                });
+            }
         }
         if (Publication.Units.Count == 0) throw new InvalidDataException("这本 EPUB 没有可阅读的正文内容。");
         foreach (var item in manifest.Values.Where(x => x.MediaType == "application/x-dtbncx+xml" || x.Properties.Contains("nav")))
@@ -146,7 +161,7 @@ internal sealed class EpubBook : RasterBook
             { Publication.Warnings.Add($"部分目录无法读取：{ex.Message}"); }
         }
         if (archive.Contains("META-INF/encryption.xml")) Publication.Warnings.Add("出版物含加密或字体混淆声明；受保护的资源可能无法显示。");
-        if (Publication.Units.Any(x => x.Error != null)) Publication.Warnings.Add("部分 EPUB 资源缺失，已保留原 spine 阅读位置。");
+        if (Publication.Units.Any(x => x.Error != null)) Publication.Warnings.Add("部分 EPUB 阅读位置暂不可显示，已保留原 spine 与图片顺序。");
     }
 
     private string? Stylesheet(string path)
@@ -176,13 +191,92 @@ internal sealed class EpubBook : RasterBook
         int index = Publication.Units.FindIndex(x => x.Locator.Resource == path);
         if (index >= 0) Publication.Navigation.Add(new NavigationItem(string.IsNullOrWhiteSpace(title) ? $"第 {index + 1} 页" : title.Trim(), index));
     }
-    private static void ReadViewport(IDocument document, ReadingUnit unit)
+    private static void ReadRules(string css, string source, List<CssRule> rules)
     {
-        var content = document.QuerySelector("meta[name='viewport']")?.GetAttribute("content") ?? "";
-        var width = Regex.Match(content, @"width\s*=\s*([\d.]+)", RegexOptions.IgnoreCase);
-        var height = Regex.Match(content, @"height\s*=\s*([\d.]+)", RegexOptions.IgnoreCase);
-        if (double.TryParse(width.Groups[1].Value, CultureInfo.InvariantCulture, out double w) && w > 0) unit.Width = w;
-        if (double.TryParse(height.Groups[1].Value, CultureInfo.InvariantCulture, out double h) && h > 0) unit.Height = h;
+        // CSS is used only to locate local bitmap references and right-angle hints.
+        // It is never executed or treated as a request to render a webpage.
+        css = Regex.Replace(css, @"/\*.*?\*/", "", RegexOptions.Singleline);
+        foreach (Match block in Regex.Matches(css, @"(?<selector>[^{}]+)\{(?<declarations>[^{}]*)\}"))
+        {
+            var selectorText = block.Groups["selector"].Value.Trim();
+            if (selectorText.StartsWith('@')) continue;
+            foreach (var selector in selectorText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (rules.Count >= 20_000) throw new InvalidDataException("EPUB 样式规则过多。");
+                rules.Add(new CssRule(selector, block.Groups["declarations"].Value, source, rules.Count));
+            }
+        }
+    }
+    private static Dictionary<IElement, List<StyleBlock>> MatchStyles(IDocument document, IEnumerable<CssRule> rules)
+    {
+        var matches = new Dictionary<IElement, List<StyleBlock>>();
+        foreach (var rule in rules)
+        {
+            if (!Regex.IsMatch(rule.Declarations, @"background|transform", RegexOptions.IgnoreCase)) continue;
+            // CSS specificity is only needed to choose between simple publisher
+            // image rules. Unsupported selectors contribute no invented images.
+            int specificity = Regex.Matches(rule.Selector, @"#[\w-]+").Count * 10_000 +
+                Regex.Matches(rule.Selector, @"\.[\w-]+|\[[^]]+\]|:(?!:)[\w-]+").Count * 100 +
+                Regex.Matches(rule.Selector, @"(?:^|[\s>+~])\s*[a-zA-Z][\w-]*").Count;
+            try
+            {
+                foreach (var element in document.QuerySelectorAll(rule.Selector))
+                {
+                    if (!matches.TryGetValue(element, out var values)) matches[element] = values = [];
+                    values.Add(new StyleBlock(rule.Declarations, rule.Source, specificity, rule.Order));
+                }
+            }
+            catch (DomException) { }
+        }
+        return matches;
+    }
+    private static List<StyleBlock> StylesFor(IElement element, Dictionary<IElement, List<StyleBlock>> styles, string contentPath)
+    {
+        var result = styles.TryGetValue(element, out var matched)
+            ? matched.OrderBy(block => block.Specificity).ThenBy(block => block.Order).ToList() : [];
+        if (element.GetAttribute("style") is { Length: > 0 } inline)
+            result.Add(new StyleBlock(inline, contentPath, int.MaxValue, int.MaxValue));
+        return result;
+    }
+    private static int? RotationFor(IElement image, Dictionary<IElement, List<StyleBlock>> styles, string contentPath)
+    {
+        int total = 0;
+        bool found = false;
+        for (IElement? element = image; element != null; element = element.ParentElement)
+        {
+            var (transform, _) = DeclarationValue(StylesFor(element, styles, contentPath), @"(?:-[a-z]+-)?transform");
+            int? rotation = transform == null ? null : transform.Equals("none", StringComparison.OrdinalIgnoreCase) ? 0 : Rotation("transform:" + transform);
+            if (transform != null && rotation == null) return null;
+            if (transform == null && element.NamespaceUri == "http://www.w3.org/2000/svg" && element.GetAttribute("transform") is { } svg)
+            {
+                var match = Regex.Match(svg, @"^\s*rotate\(\s*([-+]?\d+(?:\.\d+)?)(?:[\s,]+[-+]?\d+(?:\.\d+)?[\s,]+[-+]?\d+(?:\.\d+)?)?\s*\)\s*$", RegexOptions.IgnoreCase);
+                if (match.Success) rotation = Rotation("transform:rotate(" + match.Groups[1].Value + "deg)");
+                if (rotation == null) return null;
+            }
+            if (rotation != null) { total += rotation.Value; found = true; }
+        }
+        return found ? (total % 360 + 360) % 360 : null;
+    }
+    private static (string? Value, string? Source) DeclarationValue(IEnumerable<StyleBlock> blocks, string propertyPattern)
+    {
+        string? value = null, source = null;
+        bool important = false;
+        foreach (var block in blocks)
+            foreach (Match declaration in Regex.Matches(block.Declarations, @"(?:^|;)\s*(?:" + propertyPattern + @")\s*:\s*(?<value>[^;]*)", RegexOptions.IgnoreCase))
+            {
+                string candidate = declaration.Groups["value"].Value.Trim();
+                bool candidateImportant = Regex.IsMatch(candidate, @"!\s*important\s*$", RegexOptions.IgnoreCase);
+                if (important && !candidateImportant) continue;
+                value = Regex.Replace(candidate, @"!\s*important\s*$", "", RegexOptions.IgnoreCase).Trim();
+                source = block.Source; important = candidateImportant;
+            }
+        return (value, source);
+    }
+    private static bool HasReadableText(INode? node)
+    {
+        if (node == null || node is IElement { LocalName: "script" or "style" or "noscript" or "title" or "desc" }) return false;
+        if (node is IText) return !string.IsNullOrWhiteSpace(node.TextContent);
+        return node.ChildNodes.Any(HasReadableText);
     }
     private static int? Rotation(string? style)
     {

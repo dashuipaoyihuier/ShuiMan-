@@ -6,7 +6,7 @@ using ShuiMan.Core;
 
 namespace ShuiMan.Checks;
 
-internal static class Program
+internal static partial class Program
 {
     private static int passed;
     private static int failed;
@@ -64,7 +64,11 @@ internal static class Program
             FormatChecks(root);
             LayoutChecks();
             PairChecks();
+            PairPolicyChecks();
+            OrientationChecks();
+            BookAnalysisChecks(root);
             StorageChecks(root);
+            LibraryBookComparerChecks();
         }
         catch (Exception ex)
         {
@@ -165,13 +169,13 @@ internal static class Program
             Equal(2, book.Publication.Units.Count, "archived TIFF frames");
             True(book.RenderAsync(1).GetAwaiter().GetResult().PixelWidth > 0, "second archived TIFF frame");
         });
-        Check("TIFF browser adaptation produces a valid PNG", () =>
+        Check("TIFF raster normalization produces a valid PNG", () =>
         {
             var png = DocumentEngine.RasterToPng(File.ReadAllBytes(Path.Combine(root, "frames.tiff")), 400);
             Sequence(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, png.Take(8), "PNG signature");
             using var stream = new MemoryStream(png);
             var decoded = BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
-            True(decoded.PixelWidth > 0 && decoded.PixelHeight <= 400, "browser PNG decodes within size bound");
+            True(decoded.PixelWidth > 0 && decoded.PixelHeight <= 400, "normalized PNG decodes within size bound");
         });
         Check("render cache reuses size-specific frozen bitmap", () =>
         {
@@ -254,15 +258,63 @@ internal static class Program
             Equal(2, unlocked.Publication.Units.Count, "correct password opens encrypted PDF");
             True(Pixels(first).SequenceEqual(Pixels(unlocked.RenderAsync(0, 400).GetAwaiter().GetResult())), "password-protected artwork renders identically");
         });
-        Check("complex EPUB preserves HTML CSS and image resources", () =>
+        Check("mixed EPUB extracts its image for the native canvas and reports omitted prose", () =>
         {
             using var book = Open(Path.Combine(root, "complex.epub"));
-            Equal(1, book.Publication.Units.Count, "complex spine count");
-            True(book.Publication.Units[0].Complex, "mixed text remains a complex page");
-            True(book.Publication.Units[0].Error == null, "valid complex page has no missing-resource error");
+            Equal(1, book.Publication.Units.Count, "image count");
+            True(!book.Publication.Units[0].Complex, "EPUB has no webpage mode");
+            True(book.Publication.Units[0].Error == null && book.RenderAsync(0).GetAwaiter().GetResult().PixelWidth == 480, "mixed document image renders natively");
+            True(book.Publication.Warnings.Any(value => value.Contains("文字")), "omitted prose is disclosed");
             var html = System.Text.Encoding.UTF8.GetString(book.Resource("OPS/story.xhtml") ?? []);
-            True(html.Contains("Original story text must remain visible."), "full HTML available to browser");
+            True(html.Contains("Original story text must remain visible."), "source document is unchanged");
             True(book.Resource("OPS/style.css")?.Length > 0 && book.Resource("OPS/image.png")?.Length > 0, "linked stylesheet and image available");
+        });
+        Check("native EPUB keeps every DOM image, SVG reference, duplicate and missing position", () =>
+        {
+            using var book = Open(Path.Combine(root, "native-images.epub"));
+            var units = book.Publication.Units;
+            Equal(12, units.Count, "expanded image positions including text and missing spine placeholders");
+            True(units.All(unit => !unit.Complex), "no reading position selects a browser");
+            Sequence(["OPS/images/second.png", "OPS/images/missing.png", "OPS/images/first.png", "OPS/images/first.png"], units.Take(4).Select(unit => unit.ImagePath!), "DOM order and SVG xlink image");
+            Sequence([0, 1, 2], units.Take(3).Select(unit => unit.Locator.ImageIndex), "images in one spine document have distinct image ordinals");
+            Equal(12, units.Select(unit => unit.Id).Distinct().Count(), "duplicates and missing positions retain distinct stable identities");
+            True(units[1].Error != null && units[6].Error?.Contains("文字") == true && units[11].Error != null, "missing image, text-only document and missing spine are retained");
+            True(Pixels(book.RenderAsync(0).GetAwaiter().GetResult()).SequenceEqual(Pixels(book.RenderAsync(8).GetAwaiter().GetResult())), "repeated spine document repeats the same image");
+            True(book.RenderAsync(2).GetAwaiter().GetResult().PixelWidth == 480 && book.RenderAsync(5).GetAwaiter().GetResult().PixelWidth == 480, "later image ordinals decode separate image resources, not nonexistent raster frames");
+            using var reopened = Open(Path.Combine(root, "native-images.epub"));
+            Sequence(units.Select(unit => unit.Id), reopened.Publication.Units.Select(unit => unit.Id), "reopening preserves all image locators");
+            True(book.Publication.Navigation.Any(item => item.Index == 3) && book.Publication.Navigation.Any(item => item.Index == 7), "navigation maps to the first extracted image in its document");
+        });
+        Check("native EPUB resolves CSS backgrounds and only applies matching rotation hints", () =>
+        {
+            using var book = Open(Path.Combine(root, "native-images.epub"));
+            var units = book.Publication.Units;
+            Sequence(["OPS/images/second.png", "OPS/images/first.png"], units.Skip(4).Take(2).Select(unit => unit.ImagePath!), "external CSS resolves relative to its stylesheet and inline CSS to its document");
+            True(units[0].RotationHint == null, "an unrelated stylesheet transform does not rotate every page");
+            Equal(90, units[7].RotationHint, "matching ancestor CSS provides a right-angle rotation hint");
+            True(book.RenderAsync(3).GetAwaiter().GetResult().PixelWidth == 480 && book.RenderAsync(4).GetAwaiter().GetResult().PixelWidth == 480, "SVG-linked and CSS-linked images actually decode");
+        });
+        Check("EPUB rotation hints respect matched cascade, explicit zero, containers and SVG", () =>
+        {
+            using var book = Open(Path.Combine(root, "rotation-cascade.epub"));
+            Sequence<int?>([null, 180, 90, 0, 0, 270, null, 90, 0], book.Publication.Units.Select(unit => unit.RotationHint),
+                "unmatched CSS, specificity, inline style, ancestor composition, zero, important, non-quarter angle, SVG and CSS-none precedence");
+            True(book.Publication.Units.All(unit => !unit.Complex && unit.Error == null), "every supported wrapper still renders a native image");
+        });
+        Check("native reader rotation obeys manual then EPUB hint then optional OCR", () =>
+        {
+            var unit = new ReadingUnit { Locator = new SourceLocator("original-priority"), RotationHint = 90 };
+            var state = new SavedBook { Preferences = new ReaderPreferences { AutomaticOrientation = false } };
+            var decisions = new Dictionary<string, SpreadDecision> { [unit.Id] = new SpreadDecision(180) };
+            Equal(90, LayoutEngine.Rotation(unit, state, decisions), "publisher marking applies even when automatic inference is off");
+            state.Overrides[unit.Id] = new PageOverride { Rotation = 270 };
+            Equal(270, LayoutEngine.Rotation(unit, state, decisions), "manual correction overrides publisher and OCR");
+            state.Overrides.Clear(); unit.RotationHint = 0; state.Preferences.AutomaticOrientation = true;
+            Equal(0, LayoutEngine.Rotation(unit, state, decisions), "explicit zero publisher hint suppresses OCR");
+            unit.RotationHint = null;
+            Equal(180, LayoutEngine.Rotation(unit, state, decisions), "OCR is used only with no publisher hint");
+            state.Preferences.AutomaticOrientation = false;
+            Equal(0, LayoutEngine.Rotation(unit, state, decisions), "disabling automatic inference leaves an unmarked page upright");
         });
         foreach (var filename in new[] { "plain.mobi", "compressed.mobi" })
             Check($"MOBI image order duplicates missing position ({filename})", () =>
@@ -410,10 +462,18 @@ internal static class Program
         {
             var left = Page(false);
             var blank = Enumerable.Repeat(1.0, width * height).ToArray();
-            True(!Analyze(left, left).Automatic, "duplicate rejected");
-            True(!Analyze(blank, blank).Automatic, "blank rejected");
-            True(!Analyze(Page(false, frequency: .05), Page(true, frequency: .05)).Automatic, "smooth border rejected");
+            True(!Analyze(left, left).Suggested, "duplicate rejected even in candidate mode");
+            True(!Analyze(blank, blank).Suggested, "blank rejected even in candidate mode");
+            True(!Analyze(Page(false, frequency: .05), Page(true, frequency: .05)).Suggested, "smooth border rejected even in candidate mode");
             True(!PairAnalyzer.AnalyzePixels([.1, .2, .3], 2, 2, [.1, .2, .3, .4], 2, 2).Automatic, "invalid dimensions rejected");
+        });
+        Check("moderately noisy continuous artwork retains a cautious seam suggestion", () =>
+        {
+            var left = Page(false);
+            var noisy = Page(true).Select((value, index) => Math.Clamp(value + .22 * Math.Sin(index / width * .397), 0, 1)).ToArray();
+            var decision = Analyze(left, noisy);
+            True(decision.Suggested && !decision.Automatic, $"moderate seam is suggested without claiming strict confidence: {decision}");
+            True(decision.Correlation >= .64 && decision.MatchingBands >= 3 && decision.PlacementMargin >= .10, "independent texture bands and physical-side evidence remain required");
         });
     }
 

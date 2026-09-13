@@ -42,11 +42,9 @@ See licenses/PDFium-binaries-8035-LICENSE.txt and ALL licenses/PDFium-8035-*
 files for PDFium, its build distribution, and bundled native dependencies.
 These notices come from the matching upstream pdfium-win-x64.tgz archive.
 
-Microsoft .NET and Microsoft Edge WebView2 are Microsoft components.
+Microsoft .NET is a Microsoft component.
 The self-contained .NET runtime's upstream license and third-party notice
 files are included under licenses/microsoft.netcore.app.runtime.win-x64-*
 and licenses/microsoft.windowsdesktop.app.runtime.win-x64-*.
-WebView2 is governed by its Microsoft SDK/runtime license; its package
-notice is also included in the licenses directory.
 
 ShuiMan does not modify or claim authorship of these third-party components.

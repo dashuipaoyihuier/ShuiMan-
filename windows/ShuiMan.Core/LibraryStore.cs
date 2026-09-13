@@ -75,6 +75,151 @@ public sealed class LibraryStore
         }
     }
 
+    /// <summary>Updates only library metadata against the latest disk record, never the reader's position or settings.</summary>
+    public SavedBook? UpdateMetadata(string id, string? title = null, string? series = null,
+        IEnumerable<string>? tags = null, bool? favorite = null, string? readState = null)
+    {
+        if (title != null && string.IsNullOrWhiteSpace(title)) throw new ArgumentException("书名不能为空。", nameof(title));
+        if (readState != null && readState is not ("未读" or "在读" or "已读")) throw new ArgumentException("阅读状态无效。", nameof(readState));
+        lock (gate)
+        {
+            using var fileLock = AcquireFileLock();
+            var books = Load();
+            var book = books.FirstOrDefault(value => value.Id == id);
+            if (book == null) return null;
+            if (title != null) book.Title = title.Trim();
+            if (series != null) book.Series = series.Trim();
+            if (tags != null) book.Tags = tags.Select(tag => tag.Trim()).Where(tag => tag.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).Take(40).ToList();
+            if (favorite != null) book.Favorite = favorite.Value;
+            if (readState != null) book.ReadState = readState;
+            book.MetadataVersion++;
+            Persist(books);
+            return Clone(book);
+        }
+    }
+
+    /// <summary>Persists reader-owned fields while preserving metadata edited in another window.</summary>
+    public SavedBook SaveReadingState(SavedBook snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (string.IsNullOrWhiteSpace(snapshot.Id)) throw new ArgumentException("书籍必须有稳定的标识。", nameof(snapshot));
+        lock (gate)
+        {
+            using var fileLock = AcquireFileLock();
+            var books = Load();
+            var current = books.FirstOrDefault(value => value.Id == snapshot.Id);
+            if (current == null)
+            {
+                current = Clone(snapshot);
+                if (current.AddedAt == DateTime.MinValue) current.AddedAt = DateTime.UtcNow;
+                books.Add(current);
+            }
+            else
+            {
+                current.Path = snapshot.Path;
+                current.Revision = snapshot.Revision;
+                current.LocatorKey = snapshot.LocatorKey;
+                current.Position = Math.Max(0, snapshot.Position);
+                current.Total = Math.Max(0, snapshot.Total);
+                current.OpenedAt = snapshot.OpenedAt;
+                current.Preferences = Clone(snapshot.Preferences);
+                current.Overrides = Clone(snapshot.Overrides);
+                current.Bookmarks = Clone(snapshot.Bookmarks);
+                // A newly edited manual state wins over an older open-reader snapshot.
+                if (snapshot.MetadataVersion >= current.MetadataVersion) current.ReadState = snapshot.ReadState;
+            }
+            Persist(books);
+            return Clone(current);
+        }
+    }
+
+    /// <summary>Merges scanner results without replacing titles, favorites, tags, or any saved reading state.</summary>
+    public int ImportDiscovered(IEnumerable<SavedBook> discovered)
+    {
+        ArgumentNullException.ThrowIfNull(discovered);
+        var incoming = discovered.ToList();
+        if (incoming.Any(book => string.IsNullOrWhiteSpace(book.Id))) throw new ArgumentException("书籍必须有稳定的标识。", nameof(discovered));
+        lock (gate)
+        {
+            using var fileLock = AcquireFileLock();
+            var books = Load().ToDictionary(book => book.Id, StringComparer.Ordinal);
+            int added = 0;
+            bool changed = false;
+            foreach (var candidate in incoming)
+            {
+                if (books.TryGetValue(candidate.Id, out var existing))
+                {
+                    if (existing.Revision != candidate.Revision || existing.Path != candidate.Path)
+                    {
+                        existing.Path = candidate.Path;
+                        existing.Revision = candidate.Revision;
+                        changed = true;
+                    }
+                }
+                else
+                {
+                    var book = Clone(candidate);
+                    book.AddedAt = DateTime.UtcNow;
+                    books.Add(book.Id, book);
+                    added++; changed = true;
+                }
+            }
+            if (changed) Persist(books.Values.ToList());
+            return added;
+        }
+    }
+
+    public IReadOnlyList<string> SourceFolders
+    {
+        get { lock (gate) { using var fileLock = AcquireFileLock(); return LoadFolders(); } }
+    }
+
+    public void AddSourceFolder(string path) => ChangeSourceFolder(path, true);
+    public void RemoveSourceFolder(string path) => ChangeSourceFolder(path, false);
+
+    private void ChangeSourceFolder(string path, bool add)
+    {
+        path = System.IO.Path.GetFullPath(path).TrimEnd(System.IO.Path.DirectorySeparatorChar);
+        // Keep drive roots rooted (C:\\ must not become the relative path C:).
+        if (path.EndsWith(':')) path += System.IO.Path.DirectorySeparatorChar;
+        lock (gate)
+        {
+            using var fileLock = AcquireFileLock();
+            var folders = LoadFolders();
+            if (add && !folders.Contains(path, StringComparer.OrdinalIgnoreCase)) folders.Add(path);
+            if (!add) folders.RemoveAll(value => value.Equals(path, StringComparison.OrdinalIgnoreCase));
+            var settingsPath = System.IO.Path.Combine(DirectoryPath, "folders.json");
+            var temporary = settingsPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                { JsonSerializer.Serialize(stream, folders, JsonOptions); stream.Flush(true); }
+                if (File.Exists(settingsPath)) File.Replace(temporary, settingsPath, settingsPath + ".bak");
+                else File.Move(temporary, settingsPath);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
+    }
+
+    private List<string> LoadFolders()
+    {
+        var path = System.IO.Path.Combine(DirectoryPath, "folders.json");
+        foreach (var candidate in new[] { path, path + ".bak" })
+        {
+            if (!File.Exists(candidate)) continue;
+            try
+            {
+                var values = JsonSerializer.Deserialize<List<string>>(File.ReadAllBytes(candidate), JsonOptions);
+                if (values == null || values.Any(string.IsNullOrWhiteSpace)) throw new JsonException("文件夹列表无效。");
+                return values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+            { Warning = "保存的漫画目录暂时无法读取；书籍和阅读记录已保留，可重新添加目录。"; }
+        }
+        return [];
+    }
+
     private IDisposable AcquireFileLock() => new FileLock(mutexName);
     private sealed class FileLock : IDisposable
     {
@@ -150,6 +295,9 @@ public sealed class LibraryStore
             book.Preferences ??= new();
             book.Overrides ??= [];
             book.Bookmarks ??= [];
+            book.Tags ??= [];
+            book.Tags = book.Tags.Where(tag => !string.IsNullOrWhiteSpace(tag)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (book.AddedAt == DateTime.MinValue && book.OpenedAt != DateTime.MinValue) book.AddedAt = book.OpenedAt;
             foreach (var key in book.Overrides.Where(pair => pair.Value == null).Select(pair => pair.Key).ToArray())
                 book.Overrides.Remove(key);
             book.Position = Math.Max(0, book.Position);

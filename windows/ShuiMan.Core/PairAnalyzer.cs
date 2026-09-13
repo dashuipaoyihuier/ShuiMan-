@@ -6,7 +6,7 @@ namespace ShuiMan.Core;
 /// <summary>Conservative seam evidence ported from ComicCore and Android seam-scale-offset-v2.</summary>
 public static class PairAnalyzer
 {
-    public const string AlgorithmVersion = "seam-scale-offset-v2";
+    public const string AlgorithmVersion = "seam-scale-offset-v3-suggestions";
     private const int AnalysisHeight = 384;
     private record Features(double[] Left, double[] Right, double[] Thumbnail);
     private record Candidate(bool Swapped, double VerticalOffset = 0, double RightScale = 1,
@@ -40,7 +40,24 @@ public static class PairAnalyzer
         var margin = Math.Abs(forward.Score - reverse.Score);
         var automatic = best.Score >= .68 && best.Correlation >= .84 && best.DetailCorrelation >= .40 &&
                         best.MeanError <= .12 && best.MatchingBands >= 5 && margin >= .15;
-        return new(firstIndex, automatic, best.Swapped, best.Score, best.VerticalOffset, best.RightScale);
+        var suggested = automatic || best.Score >= .49 && best.Correlation >= .64 && best.DetailCorrelation >= .19 &&
+                        best.MeanError <= .16 && best.MatchingBands >= 3 && margin >= .10;
+        return new(firstIndex, automatic, best.Swapped, best.Score, best.VerticalOffset, best.RightScale,
+            suggested, best.Correlation, best.DetailCorrelation, best.MeanError, best.MatchingBands, margin);
+    }
+
+    public static IReadOnlyDictionary<string, double> Diagnostics(BitmapSource first, BitmapSource second)
+    {
+        var pa = AnalysisPixels.Grayscale(first); var pb = AnalysisPixels.Grayscale(second);
+        var a = ExtractFeatures(pa.Pixels, pa.Width, pa.Height); var b = ExtractFeatures(pb.Pixels, pb.Width, pb.Height);
+        return new Dictionary<string, double>
+        {
+            ["firstOwnEdges"] = Correlate(a.Left, a.Right), ["secondOwnEdges"] = Correlate(b.Left, b.Right),
+            ["firstInk"] = Ink(a.Thumbnail), ["secondInk"] = Ink(b.Thumbnail),
+            ["firstLeftChanges"] = ChangeCount(a.Left), ["firstRightChanges"] = ChangeCount(a.Right),
+            ["secondLeftChanges"] = ChangeCount(b.Left), ["secondRightChanges"] = ChangeCount(b.Right),
+            ["firstRatio"] = (double)pa.Width / pa.Height, ["secondRatio"] = (double)pb.Width / pb.Height
+        };
     }
 
     private static bool Valid(double[] pixels, int width, int height) => width > 0 && height > 0 &&

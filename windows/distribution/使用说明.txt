@@ -2,23 +2,19 @@
 
 系统要求：Windows 10 2004（19041）或更新版本，64 位 x64。
 本压缩包包含 .NET 运行时，无需自行安装 .NET。
-复杂 EPUB 的网页排版需要 Microsoft Edge WebView2 Evergreen 运行时。
-多数 Windows 10/11 电脑已安装；缺少时可从微软官网下载后安装：
-https://developer.microsoft.com/microsoft-edge/webview2/
-
 使用：完整解压本压缩包，进入 ShuiMan 文件夹，双击 ShuiMan.exe。
 请保留文件夹里的所有文件，不要只复制 exe。
 
 可选安装：双击 Install.cmd，或在此文件夹打开 PowerShell，执行：
   powershell -ExecutionPolicy Bypass -File .\install.ps1 -DesktopShortcut
-这会检查 WebView2，缺少时通过 Windows 包管理器 winget 安装，再复制水漫到
-当前用户的 LocalAppData\Programs\ShuiMan 并创建快捷方式。补装运行时需要网络。
+这会复制水漫到当前用户的 LocalAppData\Programs\ShuiMan 并创建快捷方式。
+标准安装、升级和卸载请使用 Release 中的 ShuiMan-Setup-0.7.0-x64.exe。
 更新时先关闭水漫，再从新版本解压目录执行同一安装命令。
 
 卸载：先关闭水漫，执行安装目录中的 uninstall.ps1。
 卸载保留原始漫画和阅读记录。便携版本可以直接删除解压目录。
 
-支持 ZIP/CBZ 图片压缩包、图片文件夹、图片、EPUB、PDF 及无 DRM 的旧版 MOBI。
+支持 ZIP/CBZ 图片压缩包、图片文件夹、图片、EPUB 图片漫画、PDF 及无 DRM 的旧版 MOBI。
 ZIP 内图片支持子目录及自然数字排序；无需手动解压漫画。
 TIFF 支持多帧。加密 ZIP、RAR/CBR、DRM 电子书不支持。
 

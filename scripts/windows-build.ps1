@@ -16,13 +16,23 @@ if ($LASTEXITCODE -ne 0) { throw '.NET SDK is unavailable.' }
 if (-not $SkipTests) {
     & (Join-Path $PSScriptRoot 'windows-test.ps1') -Configuration $Configuration
 }
+# Publish into a fresh folder so removed dependencies cannot leak into a new ZIP.
+# Keep the old output intact; it may still be useful for comparing a prior build.
+if (Test-Path -LiteralPath $output) {
+    $resolvedRoot = [IO.Path]::GetFullPath($outputRoot).TrimEnd('\') + '\'
+    $resolvedOutput = [IO.Path]::GetFullPath($output)
+    $previousOutput = [IO.Path]::GetFullPath((Join-Path $outputRoot ('previous-publish-' + [guid]::NewGuid().ToString('N'))))
+    if (-not $resolvedOutput.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        -not $previousOutput.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Publish paths escaped the build directory.' }
+    Move-Item -LiteralPath $resolvedOutput -Destination $previousOutput
+}
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 & dotnet publish $project --configuration $Configuration --runtime win-x64 --self-contained true --output $output -p:PublishSingleFile=false -p:PublishTrimmed=false
 if ($LASTEXITCODE -ne 0) { throw "Windows publish exited with code $LASTEXITCODE." }
 if (-not (Test-Path -LiteralPath (Join-Path $output 'ShuiMan.exe'))) {
     throw 'Publish did not produce ShuiMan.exe.'
 }
-foreach ($requiredRuntime in @('coreclr.dll', 'hostfxr.dll', 'Magick.Native-Q8-x64.dll', 'pdfium.dll', 'WebView2Loader.dll')) {
+foreach ($requiredRuntime in @('coreclr.dll', 'hostfxr.dll', 'Magick.Native-Q8-x64.dll', 'pdfium.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $output $requiredRuntime))) {
         throw "Publish is missing the required runtime file $requiredRuntime."
     }

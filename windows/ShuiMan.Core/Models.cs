@@ -49,6 +49,7 @@ public sealed class ReaderPreferences
     public bool SmartSpreads { get; set; } = true;
     public bool CoverAlone { get; set; } = true;
     public bool AutomaticPairs { get; set; } = true;
+    public bool AggressivePairs { get; set; } = true;
     public bool AutomaticOrientation { get; set; } = true;
     public string Fit { get; set; } = "page";
     public bool DarkBackground { get; set; } = true;
@@ -69,6 +70,9 @@ public sealed class SavedBook
     public string Path { get; set; } = "";
     public string Title { get; set; } = "";
     public string Series { get; set; } = "";
+    public List<string> Tags { get; set; } = [];
+    public DateTime AddedAt { get; set; } = DateTime.MinValue;
+    public long MetadataVersion { get; set; }
     public string Revision { get; set; } = "";
     public string? LocatorKey { get; set; }
     public int Position { get; set; }
@@ -81,7 +85,8 @@ public sealed class SavedBook
     public HashSet<string> Bookmarks { get; set; } = [];
 }
 public record SpreadDecision(int Rotation = 0, bool Standalone = false, bool Uncertain = false, string Reason = "");
-public record PairDecision(int FirstIndex, bool Automatic = false, bool Swapped = false, double Score = 0, double VerticalOffset = 0, double RightScale = 1);
+public record PairDecision(int FirstIndex, bool Automatic = false, bool Swapped = false, double Score = 0, double VerticalOffset = 0, double RightScale = 1,
+    bool Suggested = false, double Correlation = 0, double DetailCorrelation = 0, double MeanError = 1, int MatchingBands = 0, double PlacementMargin = 0);
 public record DisplayGroup(int[] Indices, bool Spread = false, double VerticalOffset = 0, double RightScale = 1)
 {
     public int FirstSourceIndex => Indices.Min();

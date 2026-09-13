@@ -22,9 +22,18 @@ jobs:
       - name: Regression checks and self-contained publish
         shell: pwsh
         run: ./scripts/windows-build.ps1
-      - name: WebView2 integration checks when runtime is available
+      - name: Native library and reader integration checks
         shell: pwsh
         run: ./scripts/windows-ui-test.ps1
+      - name: Set up verified Inno Setup compiler
+        shell: pwsh
+        run: ./scripts/windows-setup-compiler.ps1 -Destination "$env:RUNNER_TEMP\InnoSetup6"
+      - name: Build Windows installer
+        shell: pwsh
+        run: ./scripts/windows-installer.ps1 -CompilerPath "$env:RUNNER_TEMP\InnoSetup6\ISCC.exe"
+      - name: Isolated install, upgrade and uninstall checks
+        shell: pwsh
+        run: ./scripts/windows-installer-test.ps1 -CompilerPath "$env:RUNNER_TEMP\InnoSetup6\ISCC.exe"
       - name: Native crash diagnostics
         if: failure()
         shell: pwsh
@@ -43,11 +52,13 @@ jobs:
             Select-Object -First 15 TimeCreated, ProviderName, Id, Message | Format-List
           # The original failed build step remains failed; diagnostics are best effort.
           exit 0
-      - name: Upload portable application
+      - name: Upload Windows installer and portable application
         uses: actions/upload-artifact@v4
         with:
           name: ShuiMan-Windows-x64
           path: |
             build/windows/ShuiMan-Windows-x64.zip
             build/windows/ShuiMan-Windows-x64.zip.sha256
+            build/windows/ShuiMan-Setup-*-x64.exe
+            build/windows/ShuiMan-Setup-*-x64.exe.sha256
           if-no-files-found: error

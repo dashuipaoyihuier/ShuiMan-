@@ -6,17 +6,21 @@ ShuiMan is a privacy-first offline reader for locally owned comics and books. It
 
 The project supports local image folders, PDF, EPUB, and additional local formats as they mature. It does not provide, distribute, index, or fetch comic content. Reading progress, bookmarks, and display preferences stay on the device; source files are never modified.
 
-## Windows 0.6.0
+## Windows 0.7.0
 
-[Download Windows x64](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.6.0/ShuiMan-Windows-x64.zip) · [Release notes](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.6.0) · [SHA-256](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.6.0/ShuiMan-Windows-x64.zip.sha256)
+[Download Windows installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Setup-0.7.0-x64.exe) · [Portable ZIP](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/windows-v0.7.0/ShuiMan-Windows-x64.zip) · [Release notes](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.0)
 
-Requires Windows 10 version 2004+ or Windows 11, x64. Extract the complete Windows distribution and run `ShuiMan.exe`, or run `Install.cmd` to install for the current user. The portable distribution includes .NET; complex EPUB pages use Microsoft Edge WebView2, checked by the optional installer.
+Requires Windows 10 version 2004+ or Windows 11, x64. The Chinese installer includes .NET, installs for the current user, supports upgrades and standard Windows uninstallation, and preserves the library and source books. Desktop shortcuts and Open With integration are optional. EPUB comic images use the native reader canvas without a browser runtime.
 
-With .NET 10 SDK installed, run `./scripts/windows-build.ps1` from PowerShell. The script runs regression checks and creates `build/windows/ShuiMan/ShuiMan.exe` and `build/windows/ShuiMan-Windows-x64.zip`. The client includes a local library, persistent reading progress, bookmarks, single/double pages, direction, zoom, fullscreen, and manual spread corrections.
+This release rebuilds the Windows library and shell with a quiet, light visual style: a series cover homepage opening naturally ordered volumes, grid and list views, resume reading, favorites, read-state filters, series browsing, editable titles/series/tags, and search. Source folders are remembered and scanned every minute or on demand; removing a source stops scanning while preserving books and progress. Cover decoding runs in the background with a bounded cache. Reader saves preserve library metadata changed in another window.
 
-See [Windows documentation](windows/README.md) and [actual validation results](docs/windows-validation.md) for supported formats, build details, and known limitations. The macOS and Android build entry points remain independent.
+ZIP/CBZ reading, natural ordering, Chinese archive paths, PDF, multi-frame TIFF, spine-preserving EPUB image reading, MOBI 6 image comics, and manual spread corrections remain available. Manual rotation wins first, explicit EPUB rotation metadata second; only pages without hints use OCR and physical glyph analysis. Opening a book starts a complete background scan with persistent checkpoints; navigation uses already computed results. Seam adjustments now use sliders. C# / .NET 10 / WPF remains the native Windows stack; macOS and Android build entry points stay independent.
 
-This release adds the native Windows client, ZIP/CBZ reading without extraction, nested/Chinese archive paths, multi-frame TIFF, EPUB spine-preserving navigation, offline HTML layout, and unencrypted MOBI 6 image comics. Manual spread placement survives changes in reading direction; atomic local storage and backups preserve records across separate application instances. Validation: **38 core checks and 12 real UI integration checks passed** on the local Windows machine. Windows OCR orientation is conservative; CJK content may require publisher hints or manual correction. The binary in this release is for Windows; other platform packages remain available in the [previous release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/Comic).
+![Windows cover library with original demonstration books](docs/images/windows-library-070.png)
+
+All illustrated covers in this screenshot are original, generated in code for the demonstration.
+
+With the .NET 10 SDK installed, run `./scripts/windows-build.ps1`. To produce the installer, install Inno Setup 6.7+ with `./scripts/windows-setup-compiler.ps1`, then run `./scripts/windows-installer.ps1`. See [Windows documentation](windows/README.md) and [validation results](docs/windows-validation.md) for details and limitations. Other platform packages remain in the [previous release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/Comic).
 
 ## Highlight: intelligent spread reading
 

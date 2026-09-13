@@ -9,7 +9,7 @@ namespace ShuiMan.Core;
 /// <summary>Local Windows OCR with conservative evidence thresholds and explicit publisher hints.</summary>
 public static class SpreadAnalyzer
 {
-    public const string AlgorithmVersion = "windows-ocr-conservative-v1";
+    public const string AlgorithmVersion = "windows-cjk-glyph-reflow-v3";
 
     /// <remarks>CPU and OCR work: call from a worker, or prefer AnalyzeAsync. Input must be frozen across threads.</remarks>
     public static SpreadDecision Analyze(BitmapSource image, ReadingUnit unit) =>
@@ -19,25 +19,34 @@ public static class SpreadAnalyzer
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (unit.IsCover || unit.Complex || unit.Error != null) return new();
+        if (unit.Complex || unit.Error != null) return new();
         var ratio = (double)image.PixelWidth / image.PixelHeight;
         var baseline = new SpreadDecision(Standalone: ratio >= 1.2,
             Reason: ratio >= 1.2 ? "横向页面 · 完整展示" : "");
         var hint = LayoutEngine.NormalizeRotation(unit.RotationHint ?? 0);
-        SpreadDecision WithHint(string fallbackReason = "") => hint is 90 or 180 or 270
-            ? new(hint, true, Reason: "出版物旋转样式 · 完整展示")
-            : baseline with { Reason = fallbackReason.Length > 0 ? fallbackReason : baseline.Reason };
-        if (ratio is < .30 or > 3.2) return WithHint();
+        // Explicit publication orientation, including 0 degrees, is authoritative.
+        // The reader applies manual page overrides before this automatic decision.
+        if (unit.RotationHint.HasValue)
+            return new(hint, hint != 0 || ratio >= 1.2,
+                Reason: hint == 0 ? "出版物明确原方向" : "出版物旋转样式 · 完整展示");
+        if (unit.IsCover) return new();
+        SpreadDecision Fallback(string reason = "") => baseline with { Reason = reason.Length > 0 ? reason : baseline.Reason };
+        if (ratio is < .30 or > 3.2) return baseline;
 
-        // The Windows engine exposes no word confidence or physical CJK glyph orientation.
-        // Four-angle Latin word evidence can be compared safely; vertical CJK flow alone
-        // is deliberately never treated as proof that the artwork must be rotated.
+        // Separate physical glyph orientation from text-flow direction. Upright vertical
+        // Chinese is valid artwork; a horizontal OCR bounding box cannot prove rotation.
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(12));
+        timeout.CancelAfter(TimeSpan.FromSeconds(18));
         try
         {
+            var glyph = await GlyphOrientationAnalyzer.AnalyzeAsync(image, timeout.Token).ConfigureAwait(false);
+            if (glyph.Rotation is int glyphRotation)
+            {
+                if (glyphRotation != 0) return new(glyphRotation, true, Reason: "汉字物理字形分析 · 自动转正");
+                return baseline;
+            }
             var engine = OcrEngine.TryCreateFromUserProfileLanguages();
-            if (engine == null) return WithHint("未安装 Windows OCR 语言包；可手动旋转");
+            if (engine == null) return Fallback("未安装 Windows OCR 语言包；可手动旋转");
             var maxEdge = (int)Math.Min(1100, OcrEngine.MaxImageDimension);
             var pixels = AnalysisPixels.Bgra(image, maxEdge);
             var evidence = new List<OrientationEvidence>();
@@ -77,19 +86,18 @@ public static class SpreadAnalyzer
                              best.Score >= Math.Max(1, runner) * 2.2 && best.Score - runner >= 18;
             if (convincing && best.Angle != 0)
             {
-                if (hint != 0 && hint != best.Angle)
-                    return baseline with { Uncertain = true, Reason = "文字与出版物朝向冲突，可手动旋转" };
                 return new(best.Angle, true, Reason: "Windows 离线文字朝向分析 · 自动转正");
             }
-            if (hint is 90 or 180 or 270) return WithHint();
             if (!convincing && best.Angle != 0 && best.Score >= 10)
                 return baseline with { Uncertain = true, Reason = "朝向证据不足，可手动旋转" };
-            return baseline;
+            return glyph.Language == null
+                ? baseline with { Reason = baseline.Reason.Length > 0 ? baseline.Reason : "汉字方向识别需要 Windows 中文或日文 OCR 语言组件" }
+                : baseline;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        { return WithHint("文字朝向分析超时，可手动旋转"); }
+        { return Fallback("文字朝向分析超时，可手动旋转"); }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or UnauthorizedAccessException or TypeLoadException)
-        { return WithHint("Windows OCR 暂不可用，可手动旋转"); }
+        { return Fallback("Windows OCR 暂不可用，可手动旋转"); }
     }
 
     private sealed record OrientationEvidence(int Angle, int Score, int DistinctWords, int Lines);

@@ -1,37 +1,78 @@
 using System.IO;
-using System.IO.Compression;
-using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.Web.WebView2.Core;
-using Microsoft.Web.WebView2.Wpf;
+using System.Security.Cryptography;
 using ShuiMan.Core;
-using ShuiMan.Windows;
 
 namespace ShuiMan.UiChecks;
 
-internal static class Program
+internal static partial class Program
 {
     private static readonly List<Exception> DispatcherErrors = [];
     private static int passed;
     private static int result;
 
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
+        if (args is ["--whole-book-audit", var sourceDirectory, var sampleCount, var bookOrdinal, var cacheDirectory] &&
+            int.TryParse(sampleCount, out int sampleBooks) && int.TryParse(bookOrdinal, out int sampleBook))
+        {
+            WholeBookAudit(Path.GetFullPath(sourceDirectory), sampleBooks, sampleBook, Path.GetFullPath(cacheDirectory)).GetAwaiter().GetResult();
+            return 0;
+        }
+        if (args is ["--pair-audit", var auditDirectory, var bookCount, var pairCount] && int.TryParse(bookCount, out int books) && int.TryParse(pairCount, out int pairs))
+        {
+            PairAudit(Path.GetFullPath(auditDirectory), books, pairs).GetAwaiter().GetResult();
+            return 0;
+        }
+        if (args is ["--showcase", var destination])
+        {
+            var folder = Path.GetFullPath(destination);
+            var generated = ShowcaseFixtures.Generate(folder);
+            Console.WriteLine($"Generated {generated.Count} original comic ZIP files in {folder}");
+            return 0;
+        }
+        if (args is ["--epub-statistics", var publication])
+        {
+            using var book = DocumentEngine.OpenAsync(publication).GetAwaiter().GetResult();
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                Pages = book.Publication.Units.Count,
+                NativeImages = book.Publication.Units.Count(unit => unit.ImagePath != null && unit.Error == null && !unit.Complex),
+                WebPages = book.Publication.Units.Count(unit => unit.Complex),
+                ErrorPositions = book.Publication.Units.Count(unit => unit.Error != null),
+                RotationHints = book.Publication.Units.Count(unit => unit.RotationHint != null),
+                HintDistribution = book.Publication.Units.GroupBy(unit => unit.RotationHint?.ToString() ?? "unmarked").ToDictionary(group => group.Key, group => group.Count()),
+                HintedPageRender = RenderHintDiagnostic(book)
+            }));
+            return 0;
+        }
+        if (args.Length != 0)
+        {
+            Console.Error.WriteLine("Usage: ShuiMan.UiChecks [--showcase <new-output-folder> | --epub-statistics <local-book>]");
+            return 2;
+        }
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/ShuiMan;component/Theme.xaml", UriKind.Absolute)
+        });
         app.DispatcherUnhandledException += (_, e) =>
         {
-            DispatcherErrors.Add(e.Exception);
-            Console.Error.WriteLine($"UNHANDLED DISPATCHER: {e.Exception}");
+            if (!DispatcherErrors.Any(prior => prior.GetType() == e.Exception.GetType() && prior.Message == e.Exception.Message))
+            {
+                DispatcherErrors.Add(e.Exception);
+                Console.Error.WriteLine($"UNHANDLED DISPATCHER: {e.Exception}");
+            }
             e.Handled = true;
         };
         app.Startup += async (_, _) =>
         {
             try { await RunAsync(); }
-            catch (Exception ex) { result = 1; Console.Error.WriteLine($"FAIL WebView2 integration: {ex}"); }
+            catch (Exception ex) { result = 1; Console.Error.WriteLine($"FAIL Windows UI integration: {ex}"); }
             finally { app.Shutdown(result); }
         };
         app.Run();
@@ -40,177 +81,50 @@ internal static class Program
 
     private static async Task RunAsync()
     {
-        string version;
-        try { version = CoreWebView2Environment.GetAvailableBrowserVersionString(); }
-        catch (WebView2RuntimeNotFoundException)
-        {
-            Console.WriteLine("SKIP Windows UI checks: WebView2 Evergreen Runtime is not installed.");
-            return;
-        }
-        Console.WriteLine($"WebView2 Runtime: {version}");
         var root = Path.Combine(Path.GetTempPath(), "ShuiMan-UiChecks-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        var path = Path.Combine(root, "original-ui.epub");
-        GenerateEpub(path);
-        using var book = await DocumentEngine.OpenAsync(path);
-        var view = new WebView2();
-        var window = new Window
-        {
-            Title = "ShuiMan automated WebView2 checks", Width = 800, Height = 650,
-            Left = -12000, Top = -12000, ShowActivated = false, ShowInTaskbar = false,
-            Content = view
-        };
-        using var io = new SemaphoreSlim(1, 1);
-        var host = new RestrictedBookView(view, Path.Combine(root, "webview"), io);
         try
         {
-            window.Show();
-            await host.ShowAsync(book, "OPS/one.xhtml", CancellationToken.None);
-            await WaitForDom(view, "document.readyState === 'complete' && document.getElementById('story') !== null && document.getElementById('picture').naturalWidth > 0 && document.getElementById('tiff').naturalWidth > 0");
-            Check("complex EPUB body and local CSS render", await EvaluateBool(view,
-                "document.getElementById('story').textContent === 'Original story text' && getComputedStyle(document.getElementById('story')).color === 'rgb(18, 52, 86)'"));
-            Check("PNG and TIFF adaptation load through deferred resource handler", await EvaluateBool(view,
-                "document.getElementById('picture').naturalWidth === 24 && document.getElementById('tiff').naturalWidth === 24"));
-            Check("book scripts remain disabled while host diagnostics work", await EvaluateBool(view,
-                "typeof window.bookScriptRan === 'undefined' && document.getElementById('story').textContent === 'Original story text'") && !view.CoreWebView2.Settings.IsScriptEnabled);
-            Check("external image has no loaded content", await EvaluateBool(view, "document.getElementById('externalImage').naturalWidth === 0"));
-
-            var external = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            void OnExternal(object? sender, CoreWebView2NavigationStartingEventArgs e)
-            {
-                if (e.Uri.StartsWith("https://outside.invalid/", StringComparison.Ordinal)) external.TrySetResult(e.Cancel);
-            }
-            view.CoreWebView2.NavigationStarting += OnExternal;
-            try
-            {
-                await view.ExecuteScriptAsync("document.getElementById('externalLink').click()");
-                Check("external navigation is cancelled before leaving publication", await external.Task.WaitAsync(TimeSpan.FromSeconds(8)));
-                Check("blocked navigation retains original page", view.Source.AbsolutePath == "/OPS/one.xhtml");
-            }
-            finally { view.CoreWebView2.NavigationStarting -= OnExternal; }
-
-            var local = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-            void OnLocal(string resource) => local.TrySetResult(resource);
-            host.NavigateRequested += OnLocal;
-            try
-            {
-                await view.ExecuteScriptAsync("document.getElementById('next').click()");
-                var resource = await local.Task.WaitAsync(TimeSpan.FromSeconds(8));
-                var position = book.Publication.Units.FindIndex(unit => unit.Locator.Resource == resource);
-                Check("local EPUB link reports the correct spine position", resource == "OPS/two.xhtml" && position == 1);
-                await host.ShowAsync(book, resource, CancellationToken.None);
-                await WaitForDom(view, "document.readyState === 'complete' && document.getElementById('second') !== null");
-                Check("reported local navigation displays next EPUB page", await EvaluateBool(view, "document.getElementById('second').textContent === 'Second spine page'") && view.Source.AbsolutePath == "/OPS/two.xhtml");
-            }
-            finally { host.NavigateRequested -= OnLocal; }
-
-            host.Clear();
-            await WaitForDom(view, "location.href === 'about:blank'");
-            Check("clearing the book resets browser content", view.Source.AbsoluteUri == "about:blank");
-            await MainWindowChecks(root, path);
-            await Task.Delay(250);
-            Check("resource deferrals complete without dispatcher exceptions", DispatcherErrors.Count == 0);
+            await LibraryChecks(root);
+            await NativeEpubChecks(root);
+            await BackgroundReaderChecks(root);
+            await DoublePageChecks(root);
+            Check("the Windows reader has no browser or WebView assembly dependency", !typeof(ShuiMan.Windows.MainWindow).Assembly.GetReferencedAssemblies().Any(assembly => assembly.Name?.Contains("WebView", StringComparison.OrdinalIgnoreCase) == true));
+            await Task.Delay(200);
+            Check("native reader and library finish without dispatcher exceptions", DispatcherErrors.Count == 0);
             Console.WriteLine($"UI RESULT: {passed} passed, 0 failed");
         }
         finally
         {
-            host.Dispose();
-            window.Close();
-            book.Dispose();
-            // WebView2 browser processes can briefly retain their own profile after close.
-            // Only this generated per-run directory is eligible for cleanup.
-            for (var attempt = 0; attempt < 10; attempt++)
-            {
-                try { Directory.Delete(root, true); break; }
-                catch (IOException) { await Task.Delay(250); }
-                catch (UnauthorizedAccessException) { await Task.Delay(250); }
-            }
-            if (Directory.Exists(root)) Console.WriteLine($"WebView2 profile still closing; generated test data remains at {root}");
+            // This exact per-run directory contains only generated test books and data.
+            try { Directory.Delete(root, true); }
+            catch (IOException) { Console.WriteLine($"Generated test data is still in use: {root}"); }
         }
     }
 
-    private static async Task MainWindowChecks(string root, string bookPath)
-    {
-        // MainWindow needs its two named app brushes; visual styling is checked manually.
-        Application.Current.Resources["Accent"] = new SolidColorBrush(Color.FromRgb(8, 127, 140));
-        Application.Current.Resources["Ink"] = new SolidColorBrush(Color.FromRgb(21, 63, 72));
-        var reader = new MainWindow(Path.Combine(root, "app-data"), bookPath)
-        {
-            WindowStartupLocation = WindowStartupLocation.Manual,
-            Left = -12000, Top = -12000, ShowActivated = false, ShowInTaskbar = false
-        };
-        var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        reader.Closed += (_, _) => closed.TrySetResult();
-        try
-        {
-            reader.Show();
-            var browser = (WebView2)reader.FindName("BookWeb");
-            await WaitForDom(browser, "document.readyState === 'complete' && document.getElementById('next') !== null");
-            await browser.ExecuteScriptAsync("document.getElementById('next').click()");
-            await WaitForDom(browser, "document.readyState === 'complete' && document.getElementById('second') !== null");
-            var pageNumber = (System.Windows.Controls.TextBox)reader.FindName("PageNumber");
-            Check("real MainWindow EPUB hyperlink synchronizes displayed page number", pageNumber.Text == "2");
-            reader.Close();
-            await closed.Task.WaitAsync(TimeSpan.FromSeconds(8));
-            Check("real MainWindow closes after one Close request", !reader.IsVisible);
-        }
-        finally { if (!closed.Task.IsCompleted) reader.Close(); }
-    }
-
-    private static async Task<bool> EvaluateBool(WebView2 view, string expression)
-    {
-        var json = await view.ExecuteScriptAsync($"Boolean({expression})");
-        return JsonSerializer.Deserialize<bool>(json);
-    }
-    private static async Task WaitForDom(WebView2 view, string expression)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(20);
-        do
-        {
-            if (DispatcherErrors.Count != 0) throw new AggregateException("WebView resource event failed", DispatcherErrors);
-            try { if (await EvaluateBool(view, expression)) return; }
-            catch (InvalidOperationException) { }
-            await Task.Delay(100);
-        } while (DateTime.UtcNow < deadline);
-        throw new TimeoutException($"Browser condition timed out: {expression}");
-    }
     private static void Check(string name, bool condition)
     {
         if (!condition) throw new InvalidOperationException(name);
         passed++;
         Console.WriteLine($"PASS {name}");
     }
-    private static void GenerateEpub(string path)
+
+    private static object? RenderHintDiagnostic(IOpenBook book)
     {
-        byte[] Image(BitmapEncoder encoder)
+        var index = book.Publication.Units.FindIndex(unit => unit.RotationHint.HasValue && unit.Error == null);
+        if (index < 0) return null;
+        var original = book.RenderAsync(index, 1600).GetAwaiter().GetResult();
+        int angle = book.Publication.Units[index].RotationHint!.Value;
+        var rotated = new TransformedBitmap(original, new RotateTransform(angle));
+        byte[] Fingerprint(BitmapSource bitmap)
         {
-            var bitmap = BitmapSource.Create(24, 36, 96, 96, PixelFormats.Bgra32, null,
-                Enumerable.Repeat(new byte[] { 180, 120, 30, 255 }, 24 * 36).SelectMany(pixel => pixel).ToArray(), 24 * 4);
-            encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            using var output = new MemoryStream();
-            encoder.Save(output);
-            return output.ToArray();
+            var image = new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0);
+            var pixels = new byte[image.PixelWidth * image.PixelHeight * 4];
+            image.CopyPixels(pixels, image.PixelWidth * 4, 0);
+            return SHA256.HashData(pixels);
         }
-        using var stream = File.Create(path);
-        using var zip = new ZipArchive(stream, ZipArchiveMode.Create);
-        void Add(string name, byte[] bytes)
-        {
-            using var resource = zip.CreateEntry(name).Open();
-            resource.Write(bytes);
-        }
-        void Text(string name, string value) => Add(name, Encoding.UTF8.GetBytes(value));
-        Text("META-INF/container.xml", "<container xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile full-path=\"OPS/book.opf\"/></rootfiles></container>");
-        Text("OPS/book.opf", "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\"><manifest><item id=\"one\" href=\"one.xhtml\" media-type=\"application/xhtml+xml\"/><item id=\"two\" href=\"two.xhtml\" media-type=\"application/xhtml+xml\"/></manifest><spine><itemref idref=\"one\"/><itemref idref=\"two\"/></spine></package>");
-        Text("OPS/one.xhtml", """
-            <html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" href="style.css"/></head>
-            <body><p id="story">Original story text</p><img id="picture" src="picture.png"/><img id="tiff" src="picture.tiff"/>
-            <img id="externalImage" src="https://outside.invalid/picture.png"/>
-            <a id="next" href="two.xhtml">Next page</a><a id="externalLink" href="https://outside.invalid/escape">External</a>
-            <script>window.bookScriptRan=true;document.getElementById('story').textContent='Changed by book script';</script></body></html>
-            """);
-        Text("OPS/two.xhtml", "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body><p id=\"second\">Second spine page</p></body></html>");
-        Text("OPS/style.css", "#story { color: rgb(18, 52, 86); }");
-        Add("OPS/picture.png", Image(new PngBitmapEncoder()));
-        Add("OPS/picture.tiff", Image(new TiffBitmapEncoder()));
+        return new { Angle = angle, OriginalWidth = original.PixelWidth, OriginalHeight = original.PixelHeight,
+            RotatedWidth = rotated.PixelWidth, RotatedHeight = rotated.PixelHeight,
+            PixelsChanged = !Fingerprint(original).SequenceEqual(Fingerprint(rotated)) };
     }
 }
