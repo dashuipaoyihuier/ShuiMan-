@@ -71,17 +71,24 @@ internal static partial class Program
                 await navigation.WaitAsync(TimeSpan.FromSeconds(10));
                 await WaitReaderPage(reader, 2, 5);
                 var first = shown.ToArray();
+                var rawFirstBounds = CaptureSurface(surface).Bounds;
+                var firstBounds = await CaptureRivalBounds(reader, surface);
                 bool correctFirst = first.Length > 0 && first.All(frame => frame.Images == 1 && frame.Indices.SequenceEqual([1])) &&
-                    CaptureSurface(surface).Bounds.Width < CaptureSurface(surface).Bounds.Height;
+                    firstBounds.Width < firstBounds.Height;
                 ((Button)reader.FindName("NextPageButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await WaitReaderPage(reader, 3, 5);
                 var next = ReaderField<DisplayGroup>(reader, "_displayGroup");
+                int nextImages = ReaderField<List<BitmapSource>>(reader, "_displayImages").Count;
+                var rawNextBounds = CaptureSurface(surface).Bounds;
+                var nextBounds = await CaptureRivalBounds(reader, surface);
+                Console.WriteLine($"RIVAL FRAME manualZero={manualZero}; first={string.Join(";", first.Select(frame => $"[{string.Join(',', frame.Indices)}]/{frame.Images}"))}; " +
+                    $"firstBoundsBeforeLayout={rawFirstBounds}; firstBounds={firstBounds}; next=[{string.Join(',', next.Indices)}]/{nextImages}; " +
+                    $"nextSpread={next.Spread}; nextBoundsBeforeLayout={rawNextBounds}; nextBounds={nextBounds}; surface={surface.ActualWidth}x{surface.ActualHeight}");
                 Check(manualZero
                         ? "resolving the right rival preserves the manually upright page and then displays the next true spread"
                         : "resolving the right rival first paints the correct single page and then displays the next true spread",
                     correctFirst && next.Spread && next.Indices.SequenceEqual([2, 3]) &&
-                    ReaderField<List<BitmapSource>>(reader, "_displayImages").Count == 2 &&
-                    CaptureSurface(surface).Bounds.Width > CaptureSurface(surface).Bounds.Height);
+                    nextImages == 2 && nextBounds.Width > nextBounds.Height);
             }
             finally
             {
@@ -90,5 +97,16 @@ internal static partial class Program
                 await CloseWindow(reader);
             }
         }
+    }
+
+    private static async Task<Rect> CaptureRivalBounds(MainWindow reader, PageSurface surface)
+    {
+        // Navigation completion updates PageSurface's model and invalidates layout; WPF
+        // may not have committed its drawing yet. Drain that render turn once, while
+        // keeping the first-visible group observations made before this fence intact.
+        reader.UpdateLayout();
+        await reader.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+        surface.UpdateLayout();
+        return CaptureSurface(surface).Bounds;
     }
 }
