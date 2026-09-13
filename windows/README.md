@@ -6,7 +6,7 @@ Windows 原生 WPF 客户端，和仓库中的 macOS、Android 客户端共享�
 
 ## 运行
 
-从 [Windows 0.7.1 Release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.1) 下载 **ShuiMan-Setup-0.7.1-x64.exe**。双击后按中文向导安装。该页面同时收录最新已发布的 Android、macOS 程序包。“Source code” 是开发源码；Windows 便携 ZIP 与校验文件可通过下方构建脚本生成，或从 Windows 工作流产物获取。
+从 [Windows 0.7.2 Release](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/windows-v0.7.2) 下载 **ShuiMan-Setup-0.7.2-x64.exe**。双击后按中文向导安装。该页面同时收录最新已发布的 Android、macOS 程序包。“Source code” 是开发源码；Windows 便携 ZIP 与校验文件可通过下方构建脚本生成，或从 Windows 工作流产物获取。
 
 需要 Windows 10 2004（内部版本 19041）或更新版本，x64 架构。程序内含 .NET 运行时。安装包默认安装到 `%LOCALAPPDATA%\Programs\ShuiMan`，无需管理员权限；创建开始菜单快捷方式，可选桌面快捷方式和 ZIP/CBZ/EPUB/PDF/MOBI 的“打开方式”入口，不修改这些格式的默认应用。
 
@@ -64,8 +64,8 @@ EPUB 按出版物顺序读取漫画图片，使用与 ZIP/PDF 相同的原生画
 build/windows/ShuiMan/ShuiMan.exe
 build/windows/ShuiMan-Windows-x64.zip
 build/windows/ShuiMan-Windows-x64.zip.sha256
-build/windows/ShuiMan-Setup-0.7.1-x64.exe
-build/windows/ShuiMan-Setup-0.7.1-x64.exe.sha256
+build/windows/ShuiMan-Setup-0.7.2-x64.exe
+build/windows/ShuiMan-Setup-0.7.2-x64.exe.sha256
 ```
 
 安装器用 Inno Setup 6.7+ 编译；`windows-setup-compiler.ps1` 下载官方版本并验证签名。可用 `-CompilerPath` 指定已有编译器。`scripts/windows-installer-test.ps1` 在独立 AppId、目录和文件关联下执行安装/升级/卸载验证。

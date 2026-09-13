@@ -4,7 +4,7 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>ShuiMan</AssemblyName>
     <RootNamespace>ShuiMan.Windows</RootNamespace>
-    <Version>0.7.1</Version>
+    <Version>0.7.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>AppIcon.ico</ApplicationIcon>
   </PropertyGroup>

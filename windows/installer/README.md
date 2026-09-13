@@ -7,10 +7,10 @@
 ```powershell
 .\scripts\windows-setup-compiler.ps1
 .\scripts\windows-build.ps1
-.\scripts\windows-installer.ps1 -Version 0.7.1
+.\scripts\windows-installer.ps1 -Version 0.7.2
 ```
 
-产物位于 `build/windows/ShuiMan-Setup-0.7.1-x64.exe` 和同名 `.sha256`。生产打包会拒绝 payload 与安装器版本不一致；`-TestMode` 只生成带“测试”字样、独立身份的测试安装器，不能作为发行文件。
+产物位于 `build/windows/ShuiMan-Setup-0.7.2-x64.exe` 和同名 `.sha256`。生产打包会拒绝 payload 与安装器版本不一致；`-TestMode` 只生成带“测试”字样、独立身份的测试安装器，不能作为发行文件。构建目录被正在运行的程序占用时，可用 `windows-build.ps1 -OutputRoot <新目录>` 发布，并将其 `ShuiMan` 子目录通过 `-PayloadDirectory` 传给打包及安装器测试脚本。
 
 打包直接使用自带运行时的原生程序文件，无需联网下载额外阅读组件。ZIP/CBZ、图片、EPUB 图片漫画、PDF 和支持的旧版 MOBI 使用同一原生阅读画布；EPUB 按出版物顺序提取漫画图片，不嵌入网页排版浏览器。安装器没有外部运行时检测、下载或补装步骤。
 

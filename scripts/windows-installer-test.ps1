@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
     [string]$CompilerPath,
+    [string]$PayloadDirectory,
     [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'
-$installVersion = '0.7.1'
-$upgradeVersion = '0.7.2' # Isolated installer label only; both packages use the current application payload.
+$installVersion = '0.7.2'
+$upgradeVersion = '0.7.3' # Isolated installer label only; both packages use the current application payload.
 $repository = Split-Path -Parent $PSScriptRoot
 $testRoot = [IO.Path]::GetFullPath((Join-Path $repository 'build\windows\installer-native-smoke'))
 $installed = [IO.Path]::GetFullPath((Join-Path $testRoot 'installed'))
@@ -30,6 +31,7 @@ function Start-TestInstaller([string]$Executable, [string[]]$Arguments) {
     if ($process.ExitCode -ne 0) { throw "Installer test exited with $($process.ExitCode). See logs in $testRoot." }
 }
 $buildParameters = @{ TestMode = $true; CompilerPath = $CompilerPath }
+if ($PayloadDirectory) { $buildParameters.PayloadDirectory = $PayloadDirectory }
 if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot 'windows-installer.ps1') @buildParameters -Version $installVersion
     & (Join-Path $PSScriptRoot 'windows-installer.ps1') @buildParameters -Version $upgradeVersion

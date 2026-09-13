@@ -1,12 +1,14 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [string]$OutputRoot
 )
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repository 'windows\ShuiMan.Windows\ShuiMan.Windows.csproj'
-$outputRoot = Join-Path $repository 'build\windows'
+if (-not $OutputRoot) { $OutputRoot = Join-Path $repository 'build\windows' }
+$outputRoot = [IO.Path]::GetFullPath($OutputRoot)
 $output = Join-Path $outputRoot 'ShuiMan'
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw 'Install the .NET 10 SDK, then open a new PowerShell window.'
