@@ -1,5 +1,11 @@
 # 更新日志
 
+## 三端统一发布 · 2026-11-09
+
+统一提供 **macOS 0.9.0 / Android 1.0.7 / Windows 0.7.2** 安装包，完整汇总 PDF 自适应与裁白边、ZIP/CBZ、安卓 MOBI、音量键翻页及封面恢复。安装包内容与前面已验证版本一致，Windows 沿用 0.7.2。
+
+[统一 Release 与下载](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/release-2026.11.09) · [完整更新日志](docs/releases/release-2026.11.09.md)
+
 ## Android 1.0.7 · 2026-11-09
 
 补齐上一版遗漏的安卓 PDF 自动裁白边功能。

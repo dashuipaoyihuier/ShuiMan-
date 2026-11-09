@@ -8,11 +8,11 @@ The project supports local image folders, PDF, EPUB, and additional local format
 
 ## Latest release: macOS 0.9.0 / Android 1.0.7 / Windows 0.7.2
 
-[Windows 0.7.2 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.7 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/Shuiman-1.0.7-android-release.apk) · [macOS 0.9.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/Shuiman-0.9.0-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/android-v1.0.7)
+[Windows 0.7.2 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/release-2026.11.09/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.7 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/release-2026.11.09/Shuiman-1.0.7-android-release.apk) · [macOS 0.9.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/release-2026.11.09/Shuiman-0.9.0-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/release-2026.11.09)
 
-Android **1.0.7** adds PDF white-margin cropping, enabled by default with a per-book switch. The canvas and vertical reading layout follow the cropped aspect ratio; original PDF files remain unchanged.
+This unified release includes **macOS 0.9.0 / Android 1.0.7 / Windows 0.7.2**. macOS and Android support PDF page sizing and optional white-margin cropping; all three platforms read ZIP/CBZ image comics directly. Android also includes MOBI 6 support, volume-key paging and automatic missing-cover recovery. macOS restores the reader without automatic colorization. Windows 0.7.2 is unchanged.
 
-macOS 0.9.0 restores the reader without automatic colorization and adds PDF page sizing, optional white-margin cropping, and ZIP/CBZ reading. Android 1.0.6 adds MOBI 6 support and volume-key paging, repairs missing covers automatically, and fixes rotated PDF proportions. Windows 0.7.2 is unchanged. See the [changelog](CHANGELOG.md).
+See the [complete release notes](docs/releases/release-2026.11.09.md) and [changelog](CHANGELOG.md).
 
 Requires Windows 10 version 2004+ or Windows 11, x64. The Chinese installer includes .NET, installs for the current user, supports upgrades and standard Windows uninstallation, and preserves the library and source books. Desktop shortcuts and Open With integration are optional. EPUB comic images use the native reader canvas without a browser runtime.
 
