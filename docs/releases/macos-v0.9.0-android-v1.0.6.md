@@ -39,4 +39,4 @@ Android：`build/水漫-1.0.6-android.apk`，沿用已有发布签名，可覆�
 
 macOS 最终版已安装至 `/Applications/水漫.app`；原上色版与更新前版本保存在 `build/previous-version/`。两个安装包的校验值在 `build/reader-update-SHA256SUMS.txt`。
 
-本轮没有推送分支或发布 GitHub Release。APK 安装后回到书库，给后台封面补全留出时间；大书库按书逐本恢复，无需删除书库或重新导入全部漫画。
+发布标签：`macos-v0.9.0`，更新日志见根目录 [CHANGELOG.md](../../CHANGELOG.md)。Release 附带新 macOS / Android 安装包，以及未经修改的 Windows 0.7.2 安装包。APK 安装后回到书库，给后台封面补全留出时间；大书库按书逐本恢复，无需删除书库或重新导入全部漫画。
