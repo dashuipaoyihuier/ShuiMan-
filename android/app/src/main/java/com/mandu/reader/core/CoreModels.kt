@@ -89,7 +89,8 @@ data class ReaderPreferences(
     val smartSpreads: Boolean = true, val automaticPairs: Boolean = true,
     val aggressivePairs: Boolean = true, val automaticOrientation: Boolean = true,
     val autoHideControls: Boolean = true,
-    val volumeKeyPaging: Boolean = true
+    val volumeKeyPaging: Boolean = true,
+    val cropPDFWhiteMargins: Boolean = true
 ) {
     /** Continuous vertical scrolling is the 条漫 gesture; it also absorbs the legacy SCROLL layout. */
     val scrollsVertically: Boolean get() = pageTurn == PageTurnMode.SCROLL || layout == ReadingLayout.SCROLL

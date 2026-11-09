@@ -8,11 +8,13 @@
 
 ## 本轮更新
 
+Android **1.0.7** 补齐 PDF 自动裁白边：默认开启，可在阅读设置关闭，按书保存；内容按裁剪后的比例显示，上下滚动同步适配。详见[补丁与验证](docs/releases/android-v1.0.7.md)。
+
 macOS 0.9.0 / Android 1.0.6：Mac 恢复无自动上色版本，加入 PDF 自适应与可关闭的自动裁白边、ZIP/CBZ 阅读；安卓新增 MOBI 和音量键翻页，修复封面丢失不重建及旋转 PDF 比例。Windows 0.7.2 已支持 ZIP/CBZ，本轮保持。详见[更新与验证](docs/releases/macos-v0.9.0-android-v1.0.6.md)。安装包与[更新日志](CHANGELOG.md)见下方。
 
 ## 下载
 
-[Windows 0.7.2 安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.6 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/Shuiman-1.0.6-android-release.apk) · [macOS 0.9.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/Shuiman-0.9.0-macOS-arm64.zip) · [全部安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/macos-v0.9.0)
+[Windows 0.7.2 安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.7 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/Shuiman-1.0.7-android-release.apk) · [macOS 0.9.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/Shuiman-0.9.0-macOS-arm64.zip) · [全部安装包](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/android-v1.0.7)
 
 需要 Windows 10 2004+ 或 Windows 11，x64 架构。双击 **ShuiMan-Setup-0.7.2-x64.exe**，按照中文向导安装；之后从开始菜单打开水漫，在 Windows“已安装的应用”中卸载。安装到当前用户，内含 .NET；升级保留书库和进度，卸载保留原漫画与阅读记录。EPUB 漫画图片使用原生阅读画布，不需要浏览器运行时。
 
