@@ -140,6 +140,13 @@ struct ContentView: View {
                 .onChange(of: session.preferences.automaticOrientation) { _, _ in session.changedPreferences() }
             Toggle("封面单独展示", isOn: $session.preferences.coverAlone)
                 .onChange(of: session.preferences.coverAlone) { _, _ in session.changedPreferences() }
+            if session.publication?.kind == .pdf {
+                Toggle("PDF 自动裁白边", isOn: Binding(
+                    get: { session.preferences.cropPDFWhiteMargins },
+                    set: { session.preferences.cropPDFWhiteMargins = $0; session.changedPreferences() }
+                ))
+                    .help("保留少量安全边距；关闭可恢复完整页面。已合并的双图保持原接缝。")
+            }
             if session.publication?.kind == .epub {
                 Toggle("查看 EPUB 原版式", isOn: $session.originalLayout).onChange(of: session.originalLayout) { _, _ in session.render() }
             }
@@ -155,7 +162,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(session.recent.isEmpty ? "下一段故事，从这里开始。" : "继续你的故事。")
                         .font(.system(size: 32, weight: .semibold, design: .rounded))
-                    Text("图片、PDF、EPUB，拖进来就能读。跨页在这里完整展开。")
+                    Text("图片、PDF、EPUB、MOBI、ZIP/CBZ，拖进来就能读。跨页在这里完整展开。")
                         .font(.title3).foregroundStyle(.secondary)
                     Button { session.chooseFile() } label: {
                         Label("打开漫画或图片文件夹", systemImage: "folder.badge.plus").padding(.horizontal, 10).padding(.vertical, 5)
@@ -204,7 +211,7 @@ struct ContentView: View {
                         EPUBWebView(url: publication.sourceURL, resource: unit.locator.resource, revision: publication.revision)
                             .id(publication.identity + publication.revision)
                     } else {
-                        ReaderCanvas(pages: session.pages, spread: session.group?.spread ?? false, verticalOffset: session.group?.verticalOffset ?? 0, rightScale:session.group?.rightScale ?? 1, zoom: session.zoom, fitWidth: session.fitWidth, reverseSwipe: session.preferences.direction == .rtl, edgeToEdge:immersive, onStep: { session.step($0) }, onZoom: { session.zoom = $0 })
+                        ReaderCanvas(pages: session.pages, spread: session.group?.spread ?? false, verticalOffset: session.group?.verticalOffset ?? 0, rightScale:session.group?.rightScale ?? 1, zoom: session.zoom, fitWidth: session.fitWidth, reverseSwipe: session.preferences.direction == .rtl, edgeToEdge:immersive || session.publication?.kind == .pdf, onStep: { session.step($0) }, onZoom: { session.zoom = $0 })
                     }
                     if session.rendering { ProgressView().tint(.white).padding(20).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12)) }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)

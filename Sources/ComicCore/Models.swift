@@ -9,7 +9,7 @@ public enum ReaderError: LocalizedError {
     }
 }
 
-public enum PublicationKind: String, Codable, Sendable { case images, pdf, epub, mobi }
+public enum PublicationKind: String, Codable, Sendable { case images, pdf, epub, mobi, cbz }
 public enum ReadingDirection: String, Codable, CaseIterable, Sendable { case ltr, rtl }
 public enum ReadingLayout: String, Codable, CaseIterable, Sendable { case single, double }
 
@@ -101,8 +101,9 @@ public struct ReaderPreferences: Codable, Sendable {
     public var automaticPairs: Bool = true
     public var aggressivePairs: Bool = true
     public var automaticOrientation: Bool = true
+    public var cropPDFWhiteMargins: Bool = true
     public init() {}
-    private enum CodingKeys: String, CodingKey { case direction, layout, smartSpreads, coverAlone, automaticPairs, aggressivePairs, automaticOrientation }
+    private enum CodingKeys: String, CodingKey { case direction, layout, smartSpreads, coverAlone, automaticPairs, aggressivePairs, automaticOrientation, cropPDFWhiteMargins }
     public init(from decoder: Decoder) throws {
         let values=try decoder.container(keyedBy:CodingKeys.self)
         direction=try values.decodeIfPresent(ReadingDirection.self,forKey:.direction) ?? .ltr
@@ -112,6 +113,7 @@ public struct ReaderPreferences: Codable, Sendable {
         automaticPairs=try values.decodeIfPresent(Bool.self,forKey:.automaticPairs) ?? true
         aggressivePairs=try values.decodeIfPresent(Bool.self,forKey:.aggressivePairs) ?? true
         automaticOrientation=try values.decodeIfPresent(Bool.self,forKey:.automaticOrientation) ?? true
+        cropPDFWhiteMargins=try values.decodeIfPresent(Bool.self,forKey:.cropPDFWhiteMargins) ?? true
     }
 }
 

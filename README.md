@@ -2,9 +2,13 @@
 
 [English](README.en.md) · [开源说明](docs/OPEN_SOURCE.zh-CN.md)
 
-水漫（ShuiMan）是一款以隐私和离线阅读为优先的本地漫画阅读器。目前提供 macOS、Android 与 Windows 版本，支持在设备上直接阅读用户合法拥有的图片、PDF、EPUB、MOBI，以及其他逐步完善中的本地漫画格式；Windows 版还可直接阅读 ZIP/CBZ 图片压缩包。项目不提供、分发或索引任何漫画内容。
+水漫（ShuiMan）是一款以隐私和离线阅读为优先的本地漫画阅读器。目前提供 macOS、Android 与 Windows 版本，支持在设备上直接阅读用户合法拥有的图片、PDF、EPUB、MOBI，以及其他逐步完善中的本地漫画格式；三个平台均可直接阅读 ZIP/CBZ 图片压缩包。项目不提供、分发或索引任何漫画内容。
 
 它面向那些在意阅读顺序、双页跨页和本地文件掌控感的读者：EPUB 以 spine 顺序为准，阅读方向和双页位置可分别调整；对横置跨页及相邻双图跨页提供保守的自动分析，并始终保留逐页手动纠正。阅读进度、书签和显示偏好只保存在本机，原始文件不会被修改。
+
+## 本轮更新
+
+macOS 0.9.0 / Android 1.0.6：Mac 恢复无自动上色版本，加入 PDF 自适应与可关闭的自动裁白边、ZIP/CBZ 阅读；安卓新增 MOBI 和音量键翻页，修复封面丢失不重建及旋转 PDF 比例。Windows 0.7.2 已支持 ZIP/CBZ，本轮保持。详见[更新与验证](docs/releases/macos-v0.9.0-android-v1.0.6.md)。本轮安装包在本地构建，以下链接仍是既有公开发行版。
 
 ## 下载
 
@@ -36,7 +40,7 @@ Windows 版功能：
 
 macOS 端基于 Swift、SwiftUI 与 AppKit，Android 端基于 Kotlin 与 Jetpack Compose，Windows 端基于 C#、.NET 10 与 WPF。项目在开发者主导下，借助 **OpenAI Codex** 协作实现、测试和迭代。
 
-macOS 版本 **0.6.1** 面向 Apple Silicon，部署目标 macOS 14+。阅读漫画时按 **↑** 顺时针旋转当前页 90°，连续按四次恢复原方向；修正会保存。保留 R / Shift+R 旋转快捷键，输入框和 EPUB 原版式阅读不拦截 ↑。
+macOS 源码版本 **0.9.0** 面向 Apple Silicon，部署目标 macOS 14+。阅读漫画时按 **↑** 顺时针旋转当前页 90°，连续按四次恢复原方向；修正会保存。保留 R / Shift+R 旋转快捷键，输入框和 EPUB 原版式阅读不拦截 ↑。
 
 Windows **0.7.2** 提供标准安装包；从源码构建还可生成免安装 ZIP。C# / WPF 阅读核心继续使用，书库与界面已重做。完整功能、格式限制、构建步骤见 [Windows 说明](windows/README.md)。
 

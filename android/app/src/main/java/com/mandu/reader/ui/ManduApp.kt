@@ -50,6 +50,14 @@ fun ManduApp(
 
     LaunchedEffect(repository, imports.revision) { refresh() }
 
+    LaunchedEffect(repository, activeBookId, imports.status.running) {
+        if (activeBookId == null && !imports.status.running) {
+            repository.repairMissingCovers {
+                withContext(Dispatchers.Main.immediate) { refresh() }
+            }
+        }
+    }
+
     LaunchedEffect(pendingFiles) {
         if (pendingFiles.isEmpty()) return@LaunchedEffect
         imports.files(repository, pendingFiles)

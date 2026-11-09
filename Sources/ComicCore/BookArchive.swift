@@ -19,6 +19,7 @@ public final class BookArchive {
             entries[path] = entry
         }
     }
+    public var paths: [String] { Array(entries.keys) }
     public func contains(_ path: String) -> Bool { entries[path] != nil }
     public func data(_ path: String, limit: Int = 256 * 1024 * 1024) throws -> Data {
         guard let entry = entries[path] else { throw ReaderError.message("缺少资源：\(path)") }

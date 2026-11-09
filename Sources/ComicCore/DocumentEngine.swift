@@ -25,6 +25,10 @@ public actor DocumentEngine {
             let bookArchive = try BookArchive(url: url); nextArchive = bookArchive
             (title, units, direction, navigation, warnings) = try EPUBParser.parse(archive: bookArchive)
             if title.isEmpty { title = url.deletingPathExtension().lastPathComponent }
+        } else if ["zip", "cbz"].contains(url.pathExtension.lowercased()) {
+            kind = .cbz
+            let bookArchive = try BookArchive(url: url); nextArchive = bookArchive
+            units = try ZIPComicParser.units(in: bookArchive)
         } else if url.pathExtension.lowercased() == "mobi" {
             kind = .mobi
             let book = try MOBIBook(url:url); nextMOBI = book
@@ -39,9 +43,10 @@ public actor DocumentEngine {
             nextPDF = document
             for i in 0..<document.pageCount {
                 try Task.checkCancellation()
-                let page = document.page(at: i); let bounds = page?.bounds(for: .cropBox) ?? .zero
-                let sideways = abs(page?.rotation ?? 0) % 180 == 90
-                units.append(ReadingUnit(locator: SourceLocator(resource: path, occurrence: i), title: "第 \(i+1) 页", width: sideways ? bounds.height : bounds.width, height: sideways ? bounds.width : bounds.height))
+                let size = document.page(at: i).flatMap { try? PDFPageRenderer.geometry($0).size }
+                units.append(ReadingUnit(locator: SourceLocator(resource: path, occurrence: i), title: "第 \(i+1) 页",
+                                         width: Double(size?.width ?? 0), height: Double(size?.height ?? 0),
+                                         error: size == nil ? "PDF 页面尺寸无效。" : nil))
             }
         } else {
             let extensions = Set(["jpg", "jpeg", "png", "gif", "tiff", "tif", "bmp", "heic", "heif", "webp", "avif"])
@@ -69,16 +74,16 @@ public actor DocumentEngine {
                 }
             }
         }
-        guard !units.isEmpty else { throw ReaderError.message("没有找到可阅读的页面。请选择图片文件夹、图片、PDF、EPUB 或 MOBI。") }
+        guard !units.isEmpty else { throw ReaderError.message("没有找到可阅读的页面。请选择图片文件夹、图片、PDF、EPUB、MOBI 或 ZIP/CBZ。") }
         let publication = Publication(sourceURL: url, identity: identity, revision: Self.hash(revision), title: title, kind: kind, units: units, direction: direction, navigation: navigation, warnings: warnings)
         archive = nextArchive; pdf = nextPDF; mobi = nextMOBI; current = publication; cache.removeAllObjects(); analysisCache = [:]; pairCache = [:]
         return publication
     }
-    public func image(at index: Int, maxPixel: Int = 2400, rotation: Int = 0) throws -> CGImage {
+    public func image(at index: Int, maxPixel: Int = 2400, rotation: Int = 0, cropPDFWhiteMargins: Bool = false) throws -> CGImage {
         guard let publication = current, publication.units.indices.contains(index) else { throw ReaderError.message("页面不存在。") }
         let unit = publication.units[index]
         if let error = unit.error { throw ReaderError.message(error) }
-        let key = "\(unit.id):\(maxPixel):\(rotation)" as NSString
+        let key = "\(unit.id):\(maxPixel):\(rotation):\(cropPDFWhiteMargins)" as NSString
         if let image = cache.object(forKey: key) { return image }
         try Task.checkCancellation()
         let raw: CGImage
@@ -89,23 +94,16 @@ public actor DocumentEngine {
         case .epub:
             guard let path = unit.imagePath, let archive else { throw ReaderError.message("此页使用原版式阅读。") }
             raw = try ImageTools.decode(archive.data(path), maxPixel: maxPixel)
+        case .cbz:
+            guard let path = unit.imagePath, let archive else { throw ReaderError.message("ZIP 图片资源不可用。") }
+            raw = try ImageTools.decode(archive.data(path), index: unit.locator.imageIndex, maxPixel: maxPixel)
         case .mobi:
             guard let mobi else { throw ReaderError.message("MOBI 未打开。") }
             raw = try ImageTools.decode(mobi.imageData(for:unit),maxPixel:maxPixel)
         case .pdf:
             guard let page = pdf?.page(at: index) else { throw ReaderError.message("PDF 页面不可用。") }
-            let bounds = page.bounds(for: .cropBox)
-            guard bounds.width > 0, bounds.height > 0 else { throw ReaderError.message("PDF 页面尺寸无效。") }
-            let scale = CGFloat(maxPixel) / max(bounds.width, bounds.height)
-            let sideways = abs(page.rotation) % 180 == 90
-            let w = max(1, Int((sideways ? bounds.height : bounds.width) * scale)), h = max(1, Int((sideways ? bounds.width : bounds.height) * scale))
-            guard let context = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw ReaderError.message("无法分配页面画布。") }
-            context.setFillColor(CGColor(gray: 1, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: w, height: h))
-            guard let reference = page.pageRef else { throw ReaderError.message("PDF 页面内容不可用。") }
-            context.concatenate(reference.getDrawingTransform(.cropBox, rect: CGRect(x: 0, y: 0, width: w, height: h), rotate: 0, preserveAspectRatio: true))
-            context.drawPDFPage(reference)
-            guard let rendered = context.makeImage() else { throw ReaderError.message("PDF 页面绘制失败。") }
-            raw = rendered
+            let rendered = try PDFPageRenderer.render(page, maxPixel: maxPixel)
+            raw = cropPDFWhiteMargins ? PDFWhiteMargins.cropped(rendered) : rendered
         }
         let result = ImageTools.rotate(raw, clockwise: rotation)
         cache.setObject(result, forKey: key, cost: result.bytesPerRow * result.height)

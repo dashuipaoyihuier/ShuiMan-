@@ -82,7 +82,7 @@ final class ReaderSession: ObservableObject {
     func chooseFile() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true; panel.canChooseFiles = true; panel.allowsMultipleSelection = false
-        panel.message = "选择图片、图片文件夹、PDF、EPUB 或 MOBI"
+        panel.message = "选择图片、图片文件夹、PDF、EPUB、MOBI 或 ZIP/CBZ"
         if panel.runModal() == .OK, let url = panel.url { open(url) }
     }
     func open(_ url: URL, password: String? = nil) {
@@ -311,14 +311,14 @@ final class ReaderSession: ObservableObject {
             let rotations = indices.map { rotation(for: $0) }
             var loaded: [CanvasPage] = []
             for (offset, i) in indices.enumerated() {
-                do { let image = try await engine.image(at: i, maxPixel: 3200, rotation: rotations[offset]); loaded.append(CanvasPage(id: i, image: image, error: nil)) }
+                do { let image = try await engine.image(at: i, maxPixel: 3200, rotation: rotations[offset], cropPDFWhiteMargins: preferences.cropPDFWhiteMargins && !(resolvedGroup.spread && indices.count == 2)); loaded.append(CanvasPage(id: i, image: image, error: nil)) }
                 catch { loaded.append(CanvasPage(id: i, image: nil, error: error.localizedDescription)) }
             }
             guard !Task.isCancelled, renderID == token, publication?.identity == p.identity else { return }
             pages = loaded; rendering = false
             startAnalysis()
             if let next = groups.first(where: { $0.firstSourceIndex > resolvedGroup.firstSourceIndex })?.firstSourceIndex {
-                _ = try? await engine.image(at: next, maxPixel: 3200)
+                _ = try? await engine.image(at: next, maxPixel: 3200, cropPDFWhiteMargins: preferences.cropPDFWhiteMargins)
             }
         }
     }

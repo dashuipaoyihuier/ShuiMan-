@@ -3,6 +3,7 @@ package com.mandu.reader
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,6 +16,34 @@ import com.mandu.reader.ui.ManduApp
 import com.mandu.reader.ui.ManduTheme
 
 class MainActivity : ComponentActivity() {
+    // Owned by the currently visible reading session; sheets and library leave it null.
+    var onVolumePage: ((Int) -> Unit)? = null
+    private val heldVolumeKeys = mutableSetOf<Int>()
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val delta = when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_DOWN -> 1
+            KeyEvent.KEYCODE_VOLUME_UP -> -1
+            else -> return super.dispatchKeyEvent(event)
+        }
+        if (event.action == KeyEvent.ACTION_UP && heldVolumeKeys.remove(event.keyCode)) return true
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            if (event.keyCode in heldVolumeKeys) return true
+            val callback = onVolumePage
+            if (callback != null && event.repeatCount == 0) {
+                heldVolumeKeys.add(event.keyCode)
+                callback(delta)
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) heldVolumeKeys.clear()
+    }
+
     private lateinit var repository: BookRepository
     private var externalDocument by mutableStateOf<Uri?>(null)
 
@@ -49,12 +78,8 @@ class MainActivity : ComponentActivity() {
                     onExternalConsumed = { externalDocument = null },
                     onPickFiles = {
                         openFiles.launch(
-                            arrayOf(
-                                "application/epub+zip", "application/pdf", "application/zip",
-                                "application/vnd.comicbook+zip", "application/x-cbz",
-                                "image/jpeg", "image/png", "image/gif", "image/tiff", "image/webp",
-                                "image/heic", "image/heif", "image/bmp"
-                            )
+                            // Providers often classify MOBI as generic binary data. Validate on import.
+                            arrayOf("*/*")
                         )
                     },
                     onPickFolder = { openFolder.launch(null) }

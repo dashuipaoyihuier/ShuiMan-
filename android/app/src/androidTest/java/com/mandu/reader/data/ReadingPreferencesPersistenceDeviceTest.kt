@@ -18,13 +18,15 @@ class ReadingPreferencesPersistenceDeviceTest {
             direction = ReadingDirection.LTR,
             layout = ReadingLayout.DOUBLE,
             pageTurn = PageTurnMode.SWIPE,
-            autoHideControls = false
+            autoHideControls = false,
+            volumeKeyPaging = false
         )
         val restored = DataJson.parseState(DataJson.state(ReadingState(preferences = original))).preferences
         assertEquals(PageTurnMode.SWIPE, restored.pageTurn)
         assertEquals(ReadingDirection.LTR, restored.direction)
         assertEquals(ReadingLayout.DOUBLE, restored.layout)
         assertEquals(false, restored.autoHideControls)
+        assertEquals(false, restored.volumeKeyPaging)
     }
 
     @Test fun legacyScrollLayoutBecomesTheVerticalPageTurnMode() {
@@ -40,6 +42,7 @@ class ReadingPreferencesPersistenceDeviceTest {
         assertEquals(PageTurnMode.TAP, restored.pageTurn)
         assertEquals(ReadingDirection.RTL, restored.direction)
         assertEquals(true, restored.autoHideControls)
+        assertEquals(true, restored.volumeKeyPaging)
         assertEquals(false, restored.scrollsVertically)
     }
 
