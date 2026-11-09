@@ -356,8 +356,8 @@ private fun BookCard(book: BookRecord, onOpen: (BookRecord) -> Unit, onSave: (Bo
 
 @Composable
 internal fun Cover(book: BookRecord, compact: Boolean = false) {
-    var bitmap by remember(book.coverPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
-    LaunchedEffect(book.coverPath) {
+    var bitmap by remember(book.id, book.coverPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(book.id, book.coverPath) {
         bitmap = withContext(Dispatchers.IO) {
             runCatching { book.coverPath?.let(BitmapFactory::decodeFile) }.getOrNull()
         }
@@ -416,7 +416,7 @@ private fun ImportPane(status: ImportStatus, onCancel: () -> Unit, onPickFiles: 
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
             Text("从本机导入", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(10.dp))
-            Text("支持 EPUB、PDF、CBZ、图片和漫画文件夹。\n原文件不会被修改。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("支持 EPUB、PDF、MOBI、ZIP/CBZ、图片和漫画文件夹。\n原文件不会被修改。", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(24.dp))
             Button(onClick = onPickFiles, enabled = !importing, modifier = Modifier.fillMaxWidth(.7f)) { Text("选择文件") }
             Spacer(Modifier.height(12.dp))
@@ -477,6 +477,7 @@ internal fun BookKind.shortName(): String = when (this) {
     BookKind.PDF -> "PDF"
     BookKind.IMAGES -> "图片"
     BookKind.CBZ -> "CBZ"
+    BookKind.MOBI -> "MOBI"
 }
 
 internal fun Double.pretty(): String = if (this % 1.0 == 0.0) toInt().toString() else toString()

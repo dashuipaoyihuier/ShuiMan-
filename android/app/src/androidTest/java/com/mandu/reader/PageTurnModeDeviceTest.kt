@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import android.os.SystemClock
+import android.view.KeyEvent
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -59,6 +60,50 @@ class PageTurnModeDeviceTest {
         scenario?.close()
         if (::record.isInitialized) repository.remove(record.id)
         if (::fixtures.isInitialized) fixtures.root.deleteRecursively()
+    }
+
+    @Test fun volumeKeysTurnOncePerPressAndFollowSemanticDirection() {
+        openReader(PageTurnMode.TAP, ReadingDirection.RTL)
+        assertEquals(Page.ONE, visiblePage())
+        device.pressKeyCode(KeyEvent.KEYCODE_VOLUME_DOWN)
+        SystemClock.sleep(900)
+        assertEquals(Page.TWO, visiblePage())
+        device.pressKeyCode(KeyEvent.KEYCODE_VOLUME_UP)
+        SystemClock.sleep(900)
+        assertEquals(Page.ONE, visiblePage())
+        scenario!!.onActivity { activity ->
+            val time = SystemClock.uptimeMillis()
+            activity.dispatchKeyEvent(KeyEvent(time,time,KeyEvent.ACTION_DOWN,KeyEvent.KEYCODE_VOLUME_DOWN,0))
+            activity.dispatchKeyEvent(KeyEvent(time,time+100,KeyEvent.ACTION_DOWN,KeyEvent.KEYCODE_VOLUME_DOWN,1))
+            activity.dispatchKeyEvent(KeyEvent(time,time+200,KeyEvent.ACTION_DOWN,KeyEvent.KEYCODE_VOLUME_DOWN,2))
+            activity.dispatchKeyEvent(KeyEvent(time,time+300,KeyEvent.ACTION_UP,KeyEvent.KEYCODE_VOLUME_DOWN,0))
+        }
+        SystemClock.sleep(900)
+        assertEquals(Page.TWO, visiblePage())
+        scenario!!.recreate()
+        // Closing/recreating an Activity must not retain a stale reader callback.
+        scenario!!.onActivity { assertEquals(null,it.onVolumePage) }
+    }
+
+    @Test fun volumeKeyCallbackIsDisabledInReadingSettings() {
+        openReader(PageTurnMode.TAP, ReadingDirection.LTR)
+        device.pressKeyCode(KeyEvent.KEYCODE_VOLUME_DOWN)
+        SystemClock.sleep(900)
+        assertEquals(Page.TWO, visiblePage())
+        visible(By.desc("阅读设置")).click()
+        visible(By.text("音量键翻页"))
+        scenario!!.onActivity { assertEquals(null,it.onVolumePage) }
+        device.pressBack()
+        SystemClock.sleep(500)
+        scenario!!.onActivity { assertTrue(it.onVolumePage != null) }
+        visible(By.desc("阅读设置")).click()
+        visible(By.desc("音量键翻页开关")).click()
+        device.pressBack()
+        SystemClock.sleep(500)
+        scenario!!.onActivity { assertEquals(null,it.onVolumePage) }
+        device.pressKeyCode(KeyEvent.KEYCODE_VOLUME_DOWN)
+        SystemClock.sleep(500)
+        assertEquals(Page.TWO, visiblePage())
     }
 
     @Test fun tapModeTurnsPagesFollowingMangaOrder() {

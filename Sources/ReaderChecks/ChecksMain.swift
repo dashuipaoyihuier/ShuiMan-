@@ -19,6 +19,8 @@ struct ReaderChecks {
         try Fixtures.generate(at: fixtures)
         print("Generated original fixtures at \(fixtures.path)")
         if args.first == "--generate-only" { return }
+        try await testZIPComics(at: fixtures)
+        try await testPDFGeometry(at: fixtures)
         try await testMOBI(at: fixtures)
         if args.contains("--analyze") {
             let dialogue=Fixtures.verticalDialogue()

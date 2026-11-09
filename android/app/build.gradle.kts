@@ -10,8 +10,8 @@ android {
         applicationId = "com.mandu.reader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.0.5"
+        versionCode = 7
+        versionName = "1.0.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     val releaseStore = rootProject.file("signing/mandu-release.p12")
@@ -31,6 +31,10 @@ android {
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("localRelease")
         }
+    }
+    sourceSets {
+        getByName("test").java.srcDir("src/testSupport/java")
+        getByName("androidTest").java.srcDir("src/testSupport/java")
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }

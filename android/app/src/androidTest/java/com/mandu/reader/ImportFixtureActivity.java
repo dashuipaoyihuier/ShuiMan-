@@ -9,7 +9,7 @@ public class ImportFixtureActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getContentResolver().call(Uri.parse("content://com.mandu.reader.test.documents"),
-            getIntent().getStringExtra("method"), getIntent().getStringExtra("fixture"), null);
+            getIntent().getStringExtra("method"), getIntent().getStringExtra("fixture"), getIntent().getExtras());
         finish();
     }
 }

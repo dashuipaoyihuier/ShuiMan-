@@ -97,7 +97,7 @@ public enum LibraryScanner {
                 let values=try child.resourceValues(forKeys:[.isDirectoryKey,.isSymbolicLinkKey])
                 if values.isSymbolicLink==true { continue }
                 if values.isDirectory==true { try visit(child) }
-                else if ["epub","pdf","mobi"].contains(child.pathExtension.lowercased()) {
+                else if ["epub","pdf","mobi","zip","cbz"].contains(child.pathExtension.lowercased()) {
                     result.append(try volume(child,root:root));books=true
                 } else if imageExtensions.contains(child.pathExtension.lowercased()) { pictures=true }
             }

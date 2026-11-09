@@ -100,6 +100,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.window.Dialog
+import com.mandu.reader.MainActivity
 import com.mandu.reader.core.BookRecord
 import com.mandu.reader.core.DisplayGroup
 import com.mandu.reader.core.LayoutPlanner
@@ -326,6 +327,16 @@ private fun ReaderSession(
         navigate(delta)
         if (state.preferences.autoHideControls) controlsVisible = false
     }
+    val activity = LocalActivity.current as? MainActivity
+    val volumePagingActive = state.preferences.volumeKeyPaging && frozenGroups.isNotEmpty() &&
+        !showNavigator && !showPreferences && !showCorrections && !reachedEnd
+    val latestVolumeTurn by rememberUpdatedState<(Int) -> Unit> { turnByTouch(it) }
+    DisposableEffect(activity, volumePagingActive) {
+        if (volumePagingActive) activity?.onVolumePage = { latestVolumeTurn(it) }
+        else activity?.onVolumePage = null
+        onDispose { activity?.onVolumePage = null }
+    }
+
     fun updateOverride(index: Int, transform: (PageOverride) -> PageOverride) {
         val id = publication.units[index].id
         val updated = state.overrides.toMutableMap()
@@ -1131,6 +1142,7 @@ private fun PreferencesSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 4.dp)) {
             Text("阅读设置", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            PreferenceSwitch("音量键翻页", "音量减下一页，音量加上一页；长按只翻一页", preferences.volumeKeyPaging) { onChange(preferences.copy(volumeKeyPaging = it)) }
             OptionTitle("翻页方式")
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PageTurnMode.entries.forEach { item ->
@@ -1179,7 +1191,7 @@ private fun PreferenceSwitch(title: String, summary: String, checked: Boolean, o
             Text(title, fontWeight = FontWeight.Medium)
             Text(summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onChecked)
+        Switch(checked = checked, onCheckedChange = onChecked, modifier = Modifier.semantics { contentDescription = "${title}开关" })
     }
 }
 

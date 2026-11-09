@@ -6,8 +6,8 @@
 <key>CFBundleExecutable</key><string>ComicReader</string>
 <key>CFBundleIdentifier</key><string>com.local.ComicReader</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.6.1</string>
-<key>CFBundleVersion</key><string>10</string>
+<key>CFBundleShortVersionString</key><string>0.9.0</string>
+<key>CFBundleVersion</key><string>15</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
@@ -15,11 +15,16 @@
 <key>CFBundleTypeName</key><string>漫画与电子书</string>
 <key>CFBundleTypeRole</key><string>Viewer</string>
 <key>LSHandlerRank</key><string>Alternate</string>
-<key>LSItemContentTypes</key><array><string>public.image</string><string>com.adobe.pdf</string><string>org.idpf.epub-container</string><string>com.local.ComicReader.mobi</string><string>public.folder</string></array>
+<key>LSItemContentTypes</key><array><string>public.image</string><string>com.adobe.pdf</string><string>org.idpf.epub-container</string><string>com.local.ComicReader.mobi</string><string>public.folder</string><string>public.zip-archive</string><string>com.local.ComicReader.cbz</string></array>
 </dict></array>
 <key>UTImportedTypeDeclarations</key><array><dict>
 <key>UTTypeIdentifier</key><string>com.local.ComicReader.mobi</string>
 <key>UTTypeDescription</key><string>Mobipocket 漫画</string>
 <key>UTTypeConformsTo</key><array><string>public.data</string></array>
 <key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>mobi</string></array><key>public.mime-type</key><string>application/x-mobipocket-ebook</string></dict>
+</dict><dict>
+<key>UTTypeIdentifier</key><string>com.local.ComicReader.cbz</string>
+<key>UTTypeDescription</key><string>ZIP 漫画</string>
+<key>UTTypeConformsTo</key><array><string>public.zip-archive</string></array>
+<key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>cbz</string></array><key>public.mime-type</key><string>application/vnd.comicbook+zip</string></dict>
 </dict></array></dict></plist>

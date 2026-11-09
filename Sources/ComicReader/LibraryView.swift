@@ -117,7 +117,7 @@ struct LibraryView: View {
         ScrollView {
             VStack(alignment:.leading,spacing:24) {
                 Text("把故事带进书库").font(.largeTitle.bold())
-                Text("选择包含漫画的文件夹。子目录按系列归类，EPUB、PDF、MOBI 和图片文件夹都可以加入。原文件留在原处。")
+                Text("选择包含漫画的文件夹。子目录按系列归类，EPUB、PDF、MOBI、ZIP/CBZ 和图片文件夹都可以加入。原文件留在原处。")
                     .font(.title3).foregroundStyle(.secondary)
                 HStack {
                     Button {model.chooseDirectory()} label:{Label("添加漫画目录",systemImage:"folder.badge.plus")}.buttonStyle(.borderedProminent).controlSize(.large).disabled(model.scanning)
@@ -134,7 +134,7 @@ struct LibraryView: View {
                         Button("停止扫描") {model.removeRoot(root)}.disabled(model.scanning)
                     }.padding(18).frame(maxWidth:.infinity,alignment:.leading).background(.quaternary,in:RoundedRectangle(cornerRadius:10))
                 }
-                Text("应用运行时每分钟检查新增与移除。不可访问的目录保留索引；不会删除漫画或阅读记录。图片与书籍混放的目录以 EPUB/PDF 为书卷，散落封面图不单独入库。")
+                Text("应用运行时每分钟检查新增与移除。不可访问的目录保留索引；不会删除漫画或阅读记录。图片与书籍混放的目录以电子书或 ZIP/CBZ 为书卷，散落封面图不单独入库。")
                     .font(.callout).foregroundStyle(.secondary)
             }.padding(44).frame(maxWidth:1000,alignment:.leading).frame(maxWidth:.infinity)
         }

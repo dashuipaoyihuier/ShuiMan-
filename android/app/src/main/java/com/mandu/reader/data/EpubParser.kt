@@ -14,7 +14,8 @@ internal data class EpubData(
     val units: List<ReadingUnit>,
     val direction: ReadingDirection?,
     val navigation: List<NavigationItem>,
-    val warnings: List<String>
+    val warnings: List<String>,
+    val coverImagePath: String? = null
 )
 
 internal object EpubParser {
@@ -185,7 +186,7 @@ internal object EpubParser {
                 add("出版物含加密或字体混淆声明；受保护的资源可能无法显示。")
             }
         }
-        return EpubData(title, units, direction, navigation, warnings)
+        return EpubData(title, units, direction, navigation, warnings, coverImagePath)
     }
 
     private fun addNavigation(

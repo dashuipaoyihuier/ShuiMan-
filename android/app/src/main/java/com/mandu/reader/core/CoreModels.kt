@@ -2,7 +2,7 @@ package com.mandu.reader.core
 
 import android.graphics.Bitmap
 
-enum class BookKind { EPUB, PDF, IMAGES, CBZ }
+enum class BookKind { EPUB, PDF, IMAGES, CBZ, MOBI }
 enum class ReadingLayout { AUTO, SINGLE, DOUBLE, SCROLL }
 enum class ReadingDirection { LTR, RTL }
 enum class ScaleMode { FIT, WIDTH, ORIGINAL }
@@ -88,7 +88,8 @@ data class ReaderPreferences(
     val scaleMode: ScaleMode = ScaleMode.FIT, val coverAlone: Boolean = true,
     val smartSpreads: Boolean = true, val automaticPairs: Boolean = true,
     val aggressivePairs: Boolean = true, val automaticOrientation: Boolean = true,
-    val autoHideControls: Boolean = true
+    val autoHideControls: Boolean = true,
+    val volumeKeyPaging: Boolean = true
 ) {
     /** Continuous vertical scrolling is the 条漫 gesture; it also absorbs the legacy SCROLL layout. */
     val scrollsVertically: Boolean get() = pageTurn == PageTurnMode.SCROLL || layout == ReadingLayout.SCROLL
@@ -106,6 +107,7 @@ data class DisplayGroup(val indices: List<Int>, val spread: Boolean = false, val
 interface OpenBook : java.io.Closeable {
     val publication: Publication
     suspend fun render(index: Int, maxEdge: Int = 2400): Bitmap
+    suspend fun cover(maxEdge: Int = 512): Bitmap? = null
     fun resource(path: String): ByteArray?
 }
 class PasswordRequiredException(message: String = "这份 PDF 需要密码或密码不正确") : Exception(message)

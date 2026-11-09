@@ -78,6 +78,22 @@ class FormatDeviceTest {
     }
 
     @Test
+    fun zipExtensionImportsAsComicWithoutUnpacking() = runBlocking {
+        val file = java.io.File(fixtures.root, "image-comic.zip")
+        fixtures.cbz.copyTo(file)
+        val original = file.readBytes()
+        val repository = BookRepository(context)
+        val record = repository.importFile(Uri.fromFile(file))
+        assertEquals(BookKind.CBZ,record.kind)
+        repository.open(record).use { book ->
+            assertEquals(listOf("1.png","2.png","10.png"),book.publication.units.map { it.locator.resource })
+            assertDominant(book.render(0,64).getPixel(12,18),red=true)
+            assertDominant(book.render(2,64).getPixel(12,18),blue=true)
+        }
+        org.junit.Assert.assertArrayEquals(original,file.readBytes())
+    }
+
+    @Test
     fun epubSpineKeepsDuplicatesMissingSlotsAndComplexContentRoute() = runBlocking {
         val repository = BookRepository(context)
         val record = repository.importFile(Uri.fromFile(fixtures.epub))

@@ -2,13 +2,15 @@
 
 [简体中文](README.md) · [Open-source notes](docs/OPEN_SOURCE.en.md)
 
-ShuiMan is a privacy-first offline reader for locally owned comics and books. It has macOS, Android, and Windows implementations. The Windows client uses C# / .NET 10 / WPF and directly reads ZIP/CBZ image archives, including nested folders, Chinese filenames, and natural numeric page ordering.
+ShuiMan is a privacy-first offline reader for locally owned comics and books. It has macOS, Android, and Windows implementations. All three platforms directly read ZIP/CBZ image comics. The Windows client uses C# / .NET 10 / WPF.
 
 The project supports local image folders, PDF, EPUB, and additional local formats as they mature. It does not provide, distribute, index, or fetch comic content. Reading progress, bookmarks, and display preferences stay on the device; source files are never modified.
 
-## Windows 0.7.2
+## Latest release: macOS 0.9.0 / Android 1.0.6 / Windows 0.7.2
 
-[Windows 0.7.2 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.5 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/Shuiman-1.0.5-android-release.apk) · [macOS 0.6.1 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.6.1/Shuiman-0.6.1-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/macos-v0.6.1)
+[Windows 0.7.2 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.6 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/Shuiman-1.0.6-android-release.apk) · [macOS 0.9.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/Shuiman-0.9.0-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/macos-v0.9.0)
+
+macOS 0.9.0 restores the reader without automatic colorization and adds PDF page sizing, optional white-margin cropping, and ZIP/CBZ reading. Android 1.0.6 adds MOBI 6 support and volume-key paging, repairs missing covers automatically, and fixes rotated PDF proportions. Windows 0.7.2 is unchanged. See the [changelog](CHANGELOG.md).
 
 Requires Windows 10 version 2004+ or Windows 11, x64. The Chinese installer includes .NET, installs for the current user, supports upgrades and standard Windows uninstallation, and preserves the library and source books. Desktop shortcuts and Open With integration are optional. EPUB comic images use the native reader canvas without a browser runtime.
 
@@ -24,7 +26,7 @@ Analysis prioritizes the current page and its relevant neighbors before the firs
 
 All illustrated covers in this screenshot are original, generated in code for the demonstration.
 
-With the .NET 10 SDK installed, run `./scripts/windows-build.ps1`. To produce the installer, install Inno Setup 6.7+ with `./scripts/windows-setup-compiler.ps1`, then run `./scripts/windows-installer.ps1`. See [Windows documentation](windows/README.md) and [validation results](docs/windows-validation.md) for details and limitations. The release also includes the latest previously published Android and macOS packages under their original version names.
+With the .NET 10 SDK installed, run `./scripts/windows-build.ps1`. To produce the installer, install Inno Setup 6.7+ with `./scripts/windows-setup-compiler.ps1`, then run `./scripts/windows-installer.ps1`. See [Windows documentation](windows/README.md) and [validation results](docs/windows-validation.md) for details and limitations. The current release includes new macOS and Android packages and the unchanged Windows 0.7.2 installer.
 
 ## Highlight: intelligent spread reading
 

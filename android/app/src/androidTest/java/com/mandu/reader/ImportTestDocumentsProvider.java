@@ -54,7 +54,8 @@ public class ImportTestDocumentsProvider extends DocumentsProvider {
                 case Document.COLUMN_DOCUMENT_ID: value = id; break;
                 case Document.COLUMN_DISPLAY_NAME: value = file.getName(); break;
                 case Document.COLUMN_MIME_TYPE: value = file.isDirectory() ? Document.MIME_TYPE_DIR :
-                    file.getName().endsWith(".png") ? "image/png" : "application/vnd.comicbook+zip"; break;
+                    file.getName().endsWith(".png") ? "image/png" :
+                    file.getName().endsWith(".mobi") || file.getName().endsWith(".bin") ? "application/octet-stream" : "application/vnd.comicbook+zip"; break;
                 case Document.COLUMN_SIZE: value = file.length(); break;
                 case Document.COLUMN_LAST_MODIFIED: value = file.lastModified(); break;
                 case Document.COLUMN_FLAGS: value = 0; break;
@@ -89,6 +90,19 @@ public class ImportTestDocumentsProvider extends DocumentsProvider {
         return file(child).getAbsolutePath().startsWith(file(parent).getAbsolutePath() + "/");
     }
     @Override public Bundle call(String method, String arg, Bundle extras) {
+        if ("make-mobi-fixtures".equals(method)) {
+            if (arg == null || !arg.startsWith("slow-")) throw new IllegalArgumentException("Not a generated fixture");
+            File directory = file(arg); directory.mkdirs();
+            byte[] bytes = extras.getByteArray("mobi");
+            if (bytes == null || bytes.length > 1024 * 1024) throw new IllegalArgumentException("Invalid fixture");
+            try {
+                for (String name : new String[] {"comic.mobi", "unknown.bin"})
+                    try (OutputStream out = new FileOutputStream(new File(directory, name))) { out.write(bytes); }
+            } catch (IOException error) { throw new IllegalStateException(error); }
+            getContext().grantUriPermission("com.mandu.reader", DocumentsContract.buildTreeDocumentUri("com.mandu.reader.test.documents", arg),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            return new Bundle();
+        }
         if ("make-fixtures".equals(method) || "make-picker-fixtures".equals(method)) {
             File directory = file(arg); directory.mkdirs();
             Bitmap bitmap = Bitmap.createBitmap(48, 72, Bitmap.Config.ARGB_8888);

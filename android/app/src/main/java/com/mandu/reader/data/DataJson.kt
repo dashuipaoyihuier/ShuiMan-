@@ -106,6 +106,7 @@ internal object DataJson {
         put("aggressivePairs", value.aggressivePairs)
         put("automaticOrientation", value.automaticOrientation)
         put("autoHideControls", value.autoHideControls)
+        put("volumeKeyPaging", value.volumeKeyPaging)
     }
 
     private fun parsePreferences(json: JSONObject): ReaderPreferences {
@@ -124,7 +125,8 @@ internal object DataJson {
             automaticPairs = json.optBoolean("automaticPairs", true),
             aggressivePairs = json.optBoolean("aggressivePairs", true),
             automaticOrientation = json.optBoolean("automaticOrientation", true),
-            autoHideControls = json.optBoolean("autoHideControls", true)
+            autoHideControls = json.optBoolean("autoHideControls", true),
+            volumeKeyPaging = json.optBoolean("volumeKeyPaging", true)
         )
     }
 

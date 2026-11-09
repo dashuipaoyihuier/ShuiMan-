@@ -165,6 +165,15 @@ internal class ZipImageOpenBook(
         }
     }
 
+    override suspend fun cover(maxEdge: Int): Bitmap? = withContext(Dispatchers.IO) {
+        val path = epub?.coverImagePath
+            ?: epub?.units?.firstOrNull { it.imagePath != null && it.error == null }?.imagePath
+            ?: return@withContext null
+        val bytes = archive.bytes(path)
+        if (extension(path) in setOf("tif", "tiff")) TiffDecoder.render(bytes, 0, maxEdge)
+        else ImageDecoder.decode(bytes, "${publication.id}:${publication.revision}:cover:$path", maxEdge)
+    }
+
     override fun resource(path: String): ByteArray? = runCatching {
         archive.bytes(ZipArchive.normalize(path))
     }.getOrNull()
@@ -222,12 +231,11 @@ internal class PdfOpenBook(
                 checkActive()
                 runCatching {
                     document.openPage(index).use { page ->
-                        val crop = page.getPageCropBox()
-                        var width = if (crop.width() > 0) crop.width().roundToInt() else page.getPageWidthPoint()
-                        var height = if (crop.height() > 0) crop.height().roundToInt() else page.getPageHeightPoint()
-                        if (page.getPageRotation() == 1 || page.getPageRotation() == 3) {
-                            val swap = width; width = height; height = swap
-                        }
+                        // PDFium already applies the effective page box and intrinsic rotation.
+                        // Mixing raw crop dimensions with these oriented dimensions rotates some pages twice.
+                        val width = page.getPageWidthPoint()
+                        val height = page.getPageHeightPoint()
+                        require(width > 0 && height > 0) { "PDF 页面尺寸无效。" }
                         ReadingUnit(SourceLocator("pdf:$id", index), "第 ${index + 1} 页", width = width, height = height)
                     }
                 }.getOrElse {

@@ -3,6 +3,7 @@ package com.mandu.reader.data
 import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.mandu.reader.core.BookKind
@@ -114,7 +115,14 @@ class BookRepository(context: Context) {
         val opened = openInternal(book, password)
         try {
             currentCoroutineContext().ensureActive()
-            database.updateIndex(book.id, opened.publication.units.map { it.id }, null, System.currentTimeMillis())
+            if (opened.publication.kind != book.kind) {
+                database.book(book.id)?.let { database.save(it.copy(kind = opened.publication.kind)) }
+            }
+            // A reader can hold the snapshot from before background enrichment completed.
+            val previousCover = database.book(book.id)?.coverPath
+            val cover = if (!validCover(previousCover)) createCover(book.id, opened.publication.revision, opened) else null
+            val updated = database.updateIndex(book.id, opened.publication.units.map { it.id }, cover, System.currentTimeMillis())
+            if (updated != null) removePreviousCover(book.id, previousCover, updated.coverPath)
             opened
         } catch (error: Throwable) { opened.close(); throw error }
     }
@@ -174,6 +182,7 @@ class BookRepository(context: Context) {
             // Encrypted PDFs are valid library records; page count and cover are filled after a successful open.
         }
         database.save(record)
+        removePreviousCover(record.id, existing?.coverPath, record.coverPath)
         return record
     }
 
@@ -187,7 +196,9 @@ class BookRepository(context: Context) {
             uri.scheme == ContentResolver.SCHEME_FILE || metadata.modified > 0 -> metadata.revision
             else -> sha256("${metadata.revision}:${System.nanoTime()}")
         }
-        return when (book.kind) {
+        // Repair records that older versions mistakenly indexed as a single broken image.
+        val kind = if (book.kind == BookKind.IMAGES && extension(metadata.name) == "mobi") BookKind.MOBI else book.kind
+        return when (kind) {
             BookKind.PDF -> PdfOpenBook(
                 context,
                 book.id,
@@ -206,6 +217,7 @@ class BookRepository(context: Context) {
                     throw error
                 }
             }
+            BookKind.MOBI -> MobiOpenBook(book.id, book.title, revision, sourceCache.seekable(uri)) { job.ensureActive() }
             BookKind.CBZ -> {
                 val archive = ZipArchive(sourceCache.seekable(uri))
                 try {
@@ -237,7 +249,9 @@ class BookRepository(context: Context) {
             openInternal(book, null).use { opened ->
                 val cover = createCover(book.id, opened.publication.revision, opened)
                 currentCoroutineContext().ensureActive()
-                database.updateIndex(id, opened.publication.units.map { it.id }, cover)
+                database.updateIndex(id, opened.publication.units.map { it.id }, cover)?.also {
+                    removePreviousCover(id, book.coverPath, it.coverPath)
+                }
             }
         } catch (_: PasswordRequiredException) {
             database.book(id)
@@ -259,12 +273,14 @@ class BookRepository(context: Context) {
         return when (extension(name)) {
             "epub" -> BookKind.EPUB
             "pdf" -> BookKind.PDF
+            "mobi" -> BookKind.MOBI
             "cbz", "zip" -> BookKind.CBZ
             in IMAGE_EXTENSIONS -> BookKind.IMAGES
             else -> {
                 val type = context.contentResolver.getType(uri).orEmpty().lowercase()
                 when {
                     type == "application/pdf" -> BookKind.PDF
+                    type == "application/x-mobipocket-ebook" -> BookKind.MOBI
                     type == "application/epub+zip" -> BookKind.EPUB
                     type.startsWith("image/") -> BookKind.IMAGES
                     else -> sniffKind(uri)
@@ -275,8 +291,16 @@ class BookRepository(context: Context) {
 
     private suspend fun sniffKind(uri: Uri): BookKind {
         val header = context.contentResolver.openInputStream(uri)?.use { input ->
-            ByteArray(8).let { bytes -> bytes.copyOf(input.read(bytes).coerceAtLeast(0)) }
+            val bytes = ByteArray(78)
+            var count = 0
+            while (count < bytes.size) {
+                val read = input.read(bytes, count, bytes.size - count)
+                if (read <= 0) break
+                count += read
+            }
+            bytes.copyOf(count)
         } ?: throw IllegalArgumentException("无法读取文件。")
+        if (header.size >= 68 && header.copyOfRange(60, 68).contentEquals("BOOKMOBI".toByteArray())) return BookKind.MOBI
         if (header.startsWith("%PDF-".toByteArray())) return BookKind.PDF
         if (header.size >= 4 && header[0] == 'P'.code.toByte() && header[1] == 'K'.code.toByte()) {
             val archive = ZipArchive(sourceCache.seekable(uri))
@@ -300,23 +324,65 @@ class BookRepository(context: Context) {
         runCatching { DocumentFile.fromSingleUri(context, uri) }.getOrNull()
             ?: runCatching { DocumentFile.fromTreeUri(context, uri) }.getOrNull()
 
-    private suspend fun createCover(id: String, revision: String, opened: OpenBook): String? {
-        val index = opened.publication.units.indexOfFirst { !it.complex && it.error == null && it.imagePath != null }
-            .takeIf { it >= 0 } ?: opened.publication.units.indexOfFirst { !it.complex && it.error == null }
-        if (index < 0) return null
-        val bitmap = try {
-            opened.render(index, 512)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Throwable) {
-            return null
+    private fun validCover(path: String?): Boolean {
+        if (path == null || !File(path).isFile) return false
+        val info = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, info)
+        if (info.outWidth <= 0 || info.outHeight <= 0) return false
+        info.inJustDecodeBounds = false
+        while (maxOf(info.outWidth, info.outHeight) / (info.inSampleSize.coerceAtLeast(1) * 2) >= 64) {
+            info.inSampleSize = info.inSampleSize.coerceAtLeast(1) * 2
         }
-        val folder = File(context.cacheDir, "covers").apply { mkdirs() }
-        val destination = File(folder, "$id-$revision.png")
+        return BitmapFactory.decodeFile(path, info)?.let { it.recycle(); true } ?: false
+    }
+
+    private fun removePreviousCover(id: String, old: String?, current: String?) {
+        if (old == null || current == null || old == current) return
+        val file = File(old)
+        if (file.name.startsWith("$id-") && file.parentFile in listOf(File(context.filesDir, "covers"), File(context.cacheDir, "covers"))) {
+            file.delete()
+        }
+    }
+
+    /** Resume interrupted import enrichment and rebuild evicted legacy cache files without reimporting. */
+    suspend fun repairMissingCovers(onRepaired: suspend (BookRecord) -> Unit = {}) = withContext(Dispatchers.IO) {
+        for (book in database.books()) {
+            currentCoroutineContext().ensureActive()
+            if (validCover(book.coverPath)) continue
+            try {
+                indexBook(book.id)?.takeIf { validCover(it.coverPath) }?.let { onRepaired(it) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // One missing source, protected PDF or damaged volume must not strand the rest.
+            }
+        }
+    }
+
+    private suspend fun createCover(id: String, revision: String, opened: OpenBook): String? {
+        suspend fun attempt(render: suspend () -> Bitmap?): Bitmap? = try { render() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { null }
+        var bitmap = attempt { opened.cover(512) }
+        if (bitmap == null) {
+            val candidates = opened.publication.units.indices
+                .filter { !opened.publication.units[it].complex && opened.publication.units[it].error == null }
+                .sortedBy { if (opened.publication.units[it].isCover) 0 else 1 }
+            for (index in candidates.take(16)) {
+                currentCoroutineContext().ensureActive()
+                bitmap = attempt { opened.render(index, 512) }
+                if (bitmap != null) break
+            }
+        }
+        val image = bitmap ?: return null
+        // Covers are library assets, not disposable source cache. A new filename also makes Compose
+        // reload a repaired cover even when the book/source revision has not changed.
+        val folder = File(context.filesDir, "covers").apply { mkdirs() }
+        val destination = File(folder, "$id-$revision-${java.util.UUID.randomUUID()}.png")
         val temporary = File.createTempFile("cover-", ".part", folder)
         try {
             FileOutputStream(temporary).use { output ->
-                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) return null
+                if (!image.compress(Bitmap.CompressFormat.PNG, 100, output)) return null
             }
             if (!temporary.renameTo(destination)) return null
             return destination.absolutePath
@@ -336,7 +402,7 @@ class BookRepository(context: Context) {
         return (inferred.ifBlank { fallback }) to volume
     }
 
-    private fun supportedBookName(name: String): Boolean = extension(name) in setOf("epub", "pdf", "cbz", "zip")
+    private fun supportedBookName(name: String): Boolean = extension(name) in setOf("epub", "pdf", "cbz", "zip", "mobi")
 
     private fun ByteArray.startsWith(prefix: ByteArray): Boolean =
         size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
