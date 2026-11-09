@@ -107,6 +107,7 @@ internal object DataJson {
         put("automaticOrientation", value.automaticOrientation)
         put("autoHideControls", value.autoHideControls)
         put("volumeKeyPaging", value.volumeKeyPaging)
+        put("cropPDFWhiteMargins", value.cropPDFWhiteMargins)
     }
 
     private fun parsePreferences(json: JSONObject): ReaderPreferences {
@@ -126,7 +127,8 @@ internal object DataJson {
             aggressivePairs = json.optBoolean("aggressivePairs", true),
             automaticOrientation = json.optBoolean("automaticOrientation", true),
             autoHideControls = json.optBoolean("autoHideControls", true),
-            volumeKeyPaging = json.optBoolean("volumeKeyPaging", true)
+            volumeKeyPaging = json.optBoolean("volumeKeyPaging", true),
+            cropPDFWhiteMargins = json.optBoolean("cropPDFWhiteMargins", true)
         )
     }
 

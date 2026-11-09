@@ -6,9 +6,11 @@ ShuiMan is a privacy-first offline reader for locally owned comics and books. It
 
 The project supports local image folders, PDF, EPUB, and additional local formats as they mature. It does not provide, distribute, index, or fetch comic content. Reading progress, bookmarks, and display preferences stay on the device; source files are never modified.
 
-## Latest release: macOS 0.9.0 / Android 1.0.6 / Windows 0.7.2
+## Latest release: macOS 0.9.0 / Android 1.0.7 / Windows 0.7.2
 
-[Windows 0.7.2 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.6 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/Shuiman-1.0.6-android-release.apk) · [macOS 0.9.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/macos-v0.9.0/Shuiman-0.9.0-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/macos-v0.9.0)
+[Windows 0.7.2 installer](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/ShuiMan-Setup-0.7.2-x64.exe) · [Android 1.0.7 APK](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/Shuiman-1.0.7-android-release.apk) · [macOS 0.9.0 Apple Silicon](https://github.com/dashuipaoyihuier/ShuiMan-/releases/download/android-v1.0.7/Shuiman-0.9.0-macOS-arm64.zip) · [All installers](https://github.com/dashuipaoyihuier/ShuiMan-/releases/tag/android-v1.0.7)
+
+Android **1.0.7** adds PDF white-margin cropping, enabled by default with a per-book switch. The canvas and vertical reading layout follow the cropped aspect ratio; original PDF files remain unchanged.
 
 macOS 0.9.0 restores the reader without automatic colorization and adds PDF page sizing, optional white-margin cropping, and ZIP/CBZ reading. Android 1.0.6 adds MOBI 6 support and volume-key paging, repairs missing covers automatically, and fixes rotated PDF proportions. Windows 0.7.2 is unchanged. See the [changelog](CHANGELOG.md).
 

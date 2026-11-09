@@ -101,6 +101,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.window.Dialog
 import com.mandu.reader.MainActivity
+import com.mandu.reader.core.BookKind
+import com.mandu.reader.data.ReaderPageImage
+import com.mandu.reader.data.ReaderPageRenderer
 import com.mandu.reader.core.BookRecord
 import com.mandu.reader.core.DisplayGroup
 import com.mandu.reader.core.LayoutPlanner
@@ -512,6 +515,7 @@ private fun ReaderSession(
         onJump = { index, fragment -> setAnchor(index); complexFragment = fragment; showNavigator = false }
     )
     if (showPreferences) PreferencesSheet(
+        isPDF = publication.kind == BookKind.PDF,
         preferences = state.preferences,
         onDismiss = { showPreferences = false },
         onChange = ::updatePreferences
@@ -654,8 +658,12 @@ private fun GroupCanvas(
     val mode = state.preferences.pageTurn
     val direction = state.preferences.direction
     val scaleMode = state.preferences.scaleMode
-    var zoom by remember(group.indices, scaleMode) { mutableFloatStateOf(1f) }
-    var pan by remember(group.indices, scaleMode) { mutableStateOf(Offset.Zero) }
+    val cropPDF = ReaderPageRenderer.shouldCrop(openBook.publication, group, state.preferences)
+    var displaySizes by remember(openBook, group, rotations, cropPDF) {
+        mutableStateOf(ReaderViewportLayout.sourceSizes(openBook.publication, group, rotations))
+    }
+    var zoom by remember(group.indices, scaleMode, cropPDF) { mutableFloatStateOf(1f) }
+    var pan by remember(group.indices, scaleMode, cropPDF) { mutableStateOf(Offset.Zero) }
     // Live horizontal offset so a swipe drags the page instead of feeling dead, then eases back.
     var dragTarget by remember(group.indices, scaleMode) { mutableFloatStateOf(0f) }
     var dragging by remember(group.indices, scaleMode) { mutableStateOf(false) }
@@ -666,12 +674,12 @@ private fun GroupCanvas(
     )
     BoxWithConstraints(modifier.background(Color(0xFF0B0C0E))) {
         val density = LocalDensity.current
-        val edgeInset = with(density) { if (group.spread) 0f else (if (edgeToEdge) 2.dp else 24.dp).toPx() }
+        val edgeInset = with(density) { if (group.spread || openBook.publication.kind == BookKind.PDF) 0f else (if (edgeToEdge) 2.dp else 24.dp).toPx() }
         val normalGap = with(density) { (if (edgeToEdge) 4.dp else 14.dp).toPx() }
         val viewportPlan = ReaderViewportLayout.plan(
             viewportWidth = constraints.maxWidth.coerceAtLeast(1).toDouble(),
             viewportHeight = constraints.maxHeight.coerceAtLeast(1).toDouble(),
-            sourceSizes = ReaderViewportLayout.sourceSizes(openBook.publication, group, rotations),
+            sourceSizes = displaySizes,
             group = group,
             scaleMode = scaleMode,
             edgeInset = edgeInset.toDouble(),
@@ -775,7 +783,7 @@ private fun GroupCanvas(
                 if (complexIndex != null) {
                     RestrictedBookWebView(openBook, units[complexIndex], complexFragment, Modifier.fillMaxSize().padding(if (edgeToEdge) 2.dp else 8.dp))
                 } else {
-                    RenderedGroup(openBook, group, state, rotations, cache, Modifier.fillMaxSize(), edgeToEdge = edgeToEdge)
+                    RenderedGroup(openBook, group, state, rotations, cache, Modifier.fillMaxSize(), edgeToEdge = edgeToEdge, onSizesChanged = { displaySizes = it })
                 }
             }
             if (zoom > 1.05f) {
@@ -797,7 +805,8 @@ private fun RenderedGroup(
     rotations: Map<String, Int>,
     cache: BitmapMemoryCache,
     modifier: Modifier = Modifier,
-    edgeToEdge: Boolean = false
+    edgeToEdge: Boolean = false,
+    onSizesChanged: (List<PagePixelSize>) -> Unit
 ) {
     val sourceSizes = remember(openBook, group.indices, rotations) {
         ReaderViewportLayout.sourceSizes(openBook.publication, group, rotations)
@@ -805,11 +814,13 @@ private fun RenderedGroup(
     val maxEdge = remember(sourceSizes, state.preferences.scaleMode) {
         ReaderViewportLayout.decodeEdge(sourceSizes, state.preferences.scaleMode)
     }
-    var pages by remember(group.indices, maxEdge, rotations) { mutableStateOf<List<Pair<Int, Bitmap>>?>(null) }
-    var error by remember(group.indices, maxEdge, rotations) { mutableStateOf<String?>(null) }
+    val cropPDF = ReaderPageRenderer.shouldCrop(openBook.publication, group, state.preferences)
+    val latestOnSizesChanged by rememberUpdatedState(onSizesChanged)
+    var pages by remember(openBook, group.indices, maxEdge, rotations, cropPDF) { mutableStateOf<List<Pair<Int, ReaderPageImage>>?>(null) }
+    var error by remember(openBook, group.indices, maxEdge, rotations, cropPDF) { mutableStateOf<String?>(null) }
     var retry by remember(group.indices) { mutableIntStateOf(0) }
 
-    LaunchedEffect(openBook, group.indices, maxEdge, retry, rotations) {
+    LaunchedEffect(openBook, group.indices, maxEdge, retry, rotations, cropPDF) {
         pages = null
         error = null
         try {
@@ -817,14 +828,14 @@ private fun RenderedGroup(
                 buildList {
                     for (index in group.indices) {
                         val rotation = rotations[openBook.publication.units[index].id] ?: 0
-                        val key = "${openBook.publication.revision}:$index:$maxEdge:$rotation"
-                        val bitmap = cache[key] ?: openBook.render(index, maxEdge)
-                            .let { source -> rotated(source, rotation) }
-                            .also { cache.put(key, it) }
-                        add(index to bitmap)
+                        val key = "${openBook.publication.id}:${openBook.publication.revision}:$index:$maxEdge:$rotation:crop=$cropPDF"
+                        val image = cache.page(key) ?: ReaderPageRenderer.render(openBook, index, maxEdge, rotation, cropPDF)
+                            .also { cache.putPage(key, it) }
+                        add(index to image)
                     }
                 }
             }
+            latestOnSizesChanged(loaded.map { it.second.sourceSize })
             pages = loaded // Atomic: the pair: no half-spread is committed.
         } catch (throwable: Throwable) {
             if (throwable is CancellationException) throw throwable
@@ -839,13 +850,9 @@ private fun RenderedGroup(
             else -> {
                 val loaded = pages.orEmpty()
                 val density = LocalDensity.current
-                val edgeInset = with(density) { if (group.spread) 0f else (if (edgeToEdge) 2.dp else 24.dp).toPx() }
+                val edgeInset = with(density) { if (group.spread || openBook.publication.kind == BookKind.PDF) 0f else (if (edgeToEdge) 2.dp else 24.dp).toPx() }
                 val normalGap = with(density) { (if (edgeToEdge) 4.dp else 14.dp).toPx() }
-                val actualSizes = loaded.mapIndexed { position, (_, bitmap) ->
-                    val unit = openBook.publication.units[group.indices[position]]
-                    if (unit.width > 0 && unit.height > 0) sourceSizes[position]
-                    else PagePixelSize(bitmap.width.toDouble(), bitmap.height.coerceAtLeast(1).toDouble())
-                }
+                val actualSizes = loaded.map { it.second.sourceSize }
                 val plan = remember(
                     constraints.maxWidth, constraints.maxHeight, actualSizes, group,
                     state.preferences.scaleMode, edgeInset, normalGap
@@ -863,9 +870,9 @@ private fun RenderedGroup(
                 Layout(
                     modifier = Modifier.fillMaxSize(),
                     content = {
-                        loaded.forEach { (index, bitmap) ->
+                        loaded.forEach { (index, image) ->
                         Image(
-                            bitmap = bitmap.asImageBitmap(),
+                            bitmap = image.bitmap.asImageBitmap(),
                             contentDescription = openBook.publication.units[index].title,
                             contentScale = ContentScale.FillBounds
                         )
@@ -977,7 +984,7 @@ private fun ScrollReader(
         val density = LocalDensity.current
         val viewportWidthPx = constraints.maxWidth.coerceAtLeast(1).toDouble()
         val viewportHeightPx = constraints.maxHeight.coerceAtLeast(1).toDouble()
-        val edgeInset = with(density) { if (edgeToEdge) 2.dp.toPx() else 24.dp.toPx() }.toDouble()
+        val edgeInset = with(density) { if (openBook.publication.kind == BookKind.PDF) 0f else if (edgeToEdge) 2.dp.toPx() else 24.dp.toPx() }.toDouble()
         val normalGap = with(density) { if (edgeToEdge) 4.dp.toPx() else 14.dp.toPx() }.toDouble()
         LazyColumn(
             state = listState,
@@ -986,7 +993,10 @@ private fun ScrollReader(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             itemsIndexed(groups, key = { _, group -> group.indices.joinToString(":") }) { position, group ->
-                val sizes = ReaderViewportLayout.sourceSizes(openBook.publication, group, rotations)
+                val cropPDF = ReaderPageRenderer.shouldCrop(openBook.publication, group, state.preferences)
+                var sizes by remember(openBook, group, rotations, cropPDF) {
+                    mutableStateOf(ReaderViewportLayout.sourceSizes(openBook.publication, group, rotations))
+                }
                 val plan = ReaderViewportLayout.plan(
                     viewportWidth = viewportWidthPx,
                     viewportHeight = viewportHeightPx,
@@ -1015,7 +1025,7 @@ private fun ScrollReader(
                         openBook, openBook.publication.units[complexIndex],
                         targetFragment = complexFragment.takeIf { position == initial }, modifier = Modifier.fillMaxSize()
                     )
-                    else RenderedGroup(openBook, group, state, rotations, cache, Modifier.fillMaxSize(), edgeToEdge = edgeToEdge)
+                    else RenderedGroup(openBook, group, state, rotations, cache, Modifier.fillMaxSize(), edgeToEdge = edgeToEdge, onSizesChanged = { sizes = it })
                     }
                 }
             }
@@ -1135,6 +1145,7 @@ private fun EmptyNavigator(message: String) {
 
 @Composable
 private fun PreferencesSheet(
+    isPDF: Boolean,
     preferences: ReaderPreferences,
     onDismiss: () -> Unit,
     onChange: (ReaderPreferences) -> Unit
@@ -1143,6 +1154,7 @@ private fun PreferencesSheet(
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 4.dp)) {
             Text("阅读设置", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             PreferenceSwitch("音量键翻页", "音量减下一页，音量加上一页；长按只翻一页", preferences.volumeKeyPaging) { onChange(preferences.copy(volumeKeyPaging = it)) }
+            if (isPDF) PreferenceSwitch("PDF 自动裁白边", "扩大页面内容；关闭恢复完整页面，已合并双图保留接缝", preferences.cropPDFWhiteMargins) { onChange(preferences.copy(cropPDFWhiteMargins = it)) }
             OptionTitle("翻页方式")
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PageTurnMode.entries.forEach { item ->
@@ -1343,17 +1355,23 @@ private fun ImmersiveEffect(enabled: Boolean) {
 }
 
 private class BitmapMemoryCache(private val maxBytes: Int) {
-    private val values = LinkedHashMap<String, Bitmap>(16, .75f, true)
+    private val values = LinkedHashMap<String, ReaderPageImage>(16, .75f, true)
     private var bytes = 0
 
-    @Synchronized operator fun get(key: String): Bitmap? = values[key]
+    @Synchronized operator fun get(key: String): Bitmap? = values[key]?.bitmap
+
+    @Synchronized fun page(key: String): ReaderPageImage? = values[key]
 
     @Synchronized fun put(key: String, bitmap: Bitmap) {
-        values.put(key, bitmap)?.let { bytes -= it.safeBytes() }
-        bytes += bitmap.safeBytes()
+        putPage(key, ReaderPageImage(bitmap, PagePixelSize(bitmap.width.toDouble(), bitmap.height.toDouble())))
+    }
+
+    @Synchronized fun putPage(key: String, image: ReaderPageImage) {
+        values.put(key, image)?.let { bytes -= it.bitmap.safeBytes() }
+        bytes += image.bitmap.safeBytes()
         val iterator = values.entries.iterator()
         while (bytes > maxBytes && iterator.hasNext()) {
-            bytes -= iterator.next().value.safeBytes()
+            bytes -= iterator.next().value.bitmap.safeBytes()
             iterator.remove()
         }
     }
